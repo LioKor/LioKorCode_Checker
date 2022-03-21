@@ -22,7 +22,7 @@ def check_solution(container, stdin_file_path, tests):
             'testsTotal': len(tests)
         }
 
-    testsPassed = 0
+    tests_passed = 0
     for test in tests:
         create_file(stdin_file_path, '{}\n'.format(test[0]))
         execute_result = container.exec_run('/bin/bash -c "cd /root && cat solution/input.txt | ./a.out"')
@@ -41,24 +41,24 @@ def check_solution(container, stdin_file_path, tests):
             return {
                 'checkResult': 3,
                 'checkMessage': msg,
-                'testsPassed': testsPassed,
+                'testsPassed': tests_passed,
                 'testsTotal': len(tests)
             }
 
-        testsPassed += 1
+        tests_passed += 1
 
     return {
         'checkResult': 0,
         'checkMessage': '',
-        'testsPassed': testsPassed,
+        'testsPassed': tests_passed,
         'testsTotal': len(tests)
     }
 
 
 def check_task(source_code, tests):
     solution_dir = str(uuid1())
-    solution_path = os.path.join(os.getcwd(), solution_dir)
-    os.mkdir(solution_path)
+    solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
+    os.makedirs(solution_path)
 
     source_file_path = os.path.join(solution_path, 'main.c')
     create_file(source_file_path, source_code)
