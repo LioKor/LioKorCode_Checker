@@ -137,7 +137,7 @@ def check_task(source_code, tests):
             },
         },
         network_disabled=True,
-        mem_limit='6m',
+        mem_limit='64m',
     )
 
     result = check_solution(client, container, stdin_file_path, tests)
