@@ -1,6 +1,13 @@
 import os
 
 
+def get_ext(path: str) -> str:
+    arr = path.split('.')
+    if len(arr) > 1:
+        return arr[len(arr) - 1]
+    return ''
+
+
 def create_file(path, content):
     f = open(path, 'w')
     f.write(content)

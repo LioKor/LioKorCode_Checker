@@ -2,11 +2,14 @@ import docker
 import os
 import shutil
 import time
+import subprocess
+import io
+
 from threading import Thread
 
 from uuid import uuid1
 
-from utils import create_file, create_files
+from utils import create_file, create_files, get_ext
 
 STATUS_OK = 0
 STATUS_CHECKING = 1
@@ -15,6 +18,8 @@ STATUS_RUNTIME_ERROR = 3
 STATUS_CHECK_ERROR = 4
 STATUS_RUNTIME_TIMEOUT = 6
 STATUS_COMPILE_TIMEOUT = 7
+STATUS_LINT_ERROR = 8
+STATUS_DRAFT = 9
 
 # todo: receive check timeout from backend
 RUNTIME_TIMEOUT = 4  # in seconds
@@ -127,6 +132,28 @@ def check_solution(client, container, stdin_file_path, tests):
     return result
 
 
+def lint_code(source_path: str, py_files: list) -> str:
+    result = subprocess.run(
+        ['cpplint', '--filter=-legal,-build/include_subdir', '--recursive', '--repository={}'.format(source_path), '.'],
+        cwd=source_path,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    if result.returncode != 0:
+        return result.stderr.decode()
+
+    if len(py_files) > 0:
+        cmd = ['pylint', '--disable=missing-docstring']
+        cmd.extend(py_files)
+        result = subprocess.run(
+            cmd, cwd=source_path,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        if result.returncode != 0:
+            return result.stdout.decode()
+
+    return ''
+
+
 def check_task_multiple_files(source_code, tests):
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
@@ -140,6 +167,22 @@ def check_task_multiple_files(source_code, tests):
 
     # todo: move this procedure to container for security reasons (e.g. escape root)
     create_files(source_code, solution_path_source)
+    py_files = []
+    for file in source_code:
+        if get_ext(file) == 'py':
+            py_files.append(file)
+
+    lint_message = lint_code(solution_path_source, py_files)
+    if lint_message:
+        shutil.rmtree(solution_path)
+        return {
+            'checkTime': 0,
+            'compileTime': 0,
+            'checkResult': STATUS_LINT_ERROR,
+            'checkMessage': lint_message,
+            'testsPassed': 0,
+            'testsTotal': len(tests)
+        }
 
     client = docker.from_env()
 

@@ -1,7 +1,18 @@
 from task_checker import check_task_multiple_files
 
-source_code = {
-    'Makefile': '''solution: main.c sum.o
+source_code_py = {
+    'Makefile': '''compile:
+	echo wolf
+run:
+	python3 main.py
+''',
+    'main.py': '''A, B = list(map(int, input().split()))
+print(A + B, end='')
+'''
+}
+
+source_code_c = {
+    'Makefile': '''compile: main.c sum.o
 	gcc main.c sum.o -o solution
 
 run: solution
@@ -36,5 +47,5 @@ tests = [
 ]
 
 if __name__ == '__main__':
-    result = check_task_multiple_files(source_code, tests)
+    result = check_task_multiple_files(source_code_py, tests)
     print(result)
