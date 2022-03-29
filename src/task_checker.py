@@ -3,7 +3,6 @@ import os
 import shutil
 import time
 import subprocess
-import io
 
 from threading import Thread
 
