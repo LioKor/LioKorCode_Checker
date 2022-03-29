@@ -133,7 +133,7 @@ def check_solution(client, container, stdin_file_path, tests):
 
 def lint_code(source_path: str, py_files: list) -> str:
     result = subprocess.run(
-        ['python', '-m', 'cpplint', '--filter=-legal,-build/include_subdir', '--recursive', '--repository={}'.format(source_path), '.'],
+        ['python', '-m', 'cpplint', '--filter=-legal,-build/include_subdir,-whitespace/tab', '--recursive', '--repository={}'.format(source_path), '.'],
         cwd=source_path,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
