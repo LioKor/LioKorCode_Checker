@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 import subprocess
+import json
 
 from threading import Thread
 
@@ -12,7 +13,7 @@ from utils import create_file, create_files, get_ext
 
 STATUS_OK = 0
 STATUS_CHECKING = 1
-STATUS_COMPILE_ERROR = 2
+STATUS_BUILD_ERROR = 2
 STATUS_RUNTIME_ERROR = 3
 STATUS_CHECK_ERROR = 4
 STATUS_RUNTIME_TIMEOUT = 6
@@ -21,20 +22,33 @@ STATUS_LINT_ERROR = 8
 STATUS_DRAFT = 9
 
 # todo: receive check timeout from backend
+COMPILE_TIMEOUT = 6  # in seconds
 RUNTIME_TIMEOUT = 4  # in seconds
 
-# todo: replace dict, that is returned, with object
-# class CheckResult:
-#     check_result = 0
-#     check_message = ''
-#     tests_passed = 0
-#     tests_total = 0
-#
-#     def __init__(self, check_result, check_message, tests_passed, tests_total):
-#         self.check_result = check_result
-#         self.check_message = check_message
-#         self.tests_passed = tests_passed
-#         self.tests_total = tests_total
+
+class CheckResult:
+    def __init__(self,
+                 check_time: float = 0.0,
+                 compile_time: float = 0.0,
+                 check_result: int = -1,
+                 check_message: str = '',
+                 tests_passed: int = 0,
+                 tests_total: int = 0
+                 ):
+        self.check_time = check_time  # todo: rename to test_time
+        self.build_time = compile_time
+        self.check_result = check_result  # todo: rename to status
+        self.check_message = check_message  # todo: rename to message
+        self.tests_passed = tests_passed
+        self.tests_total = tests_total
+
+    def json(self) -> str:
+        json_data = {}
+        for key, value in self.__dict__.items():
+            key_split = key.split('_')
+            new_key = key_split[0] + ''.join(word.capitalize() for word in key_split[1:])
+            json_data[new_key] = value
+        return json.dumps(json_data)
 
 
 class DockerTestThread(Thread):
@@ -50,69 +64,76 @@ class DockerTestThread(Thread):
     def run(self):
         tests_passed = 0
         for test in self.tests:
-            create_file(self.stdin_file_path, '{}\n'.format(test[0]))
+            stdin, expected = test[0], test[1]
+
+            create_file(self.stdin_file_path, '{}\n'.format(stdin))
             execute_result = self.container.exec_run('/bin/bash -c "cd /root/source_w && cat /root/input/input.txt | make -s run"')
 
             self.container = self.client.containers.get(self.container.id)
             if self.container.status == 'exited':
-                self.result = {
-                    'checkResult': STATUS_RUNTIME_TIMEOUT,
-                    'checkMessage': '',
-                    'testsPassed': tests_passed,
-                    'testsTotal': len(self.tests)
-                }
+                self.result = CheckResult(
+                    check_result=STATUS_RUNTIME_TIMEOUT,
+                    check_message='',
+                    tests_passed=tests_passed,
+                    tests_total=len(self.tests)
+                )
                 return
 
             if execute_result.exit_code != 0:
                 msg = execute_result.output.decode()
-                self.result = {
-                    'checkResult': STATUS_RUNTIME_ERROR,
-                    'checkMessage': msg,
-                    'testsPassed': 0,
-                    'testsTotal': len(self.tests)
-                }
+                self.result = CheckResult(
+                    check_result=STATUS_RUNTIME_ERROR,
+                    check_message=msg,
+                    tests_passed=0,
+                    tests_total=len(self.tests)
+                )
                 return
 
             stdout = execute_result.output.decode()
-            if stdout != test[1]:
-                msg = 'For {} expected {}, but got {}'.format(test[0], test[1], stdout)
-                self.result = {
-                    'checkResult': STATUS_CHECK_ERROR,
-                    'checkMessage': msg,
-                    'testsPassed': tests_passed,
-                    'testsTotal': len(self.tests)
-                }
+            # it's a practice to add \n on the end of output, but tests don't have it
+            if stdout[len(stdout) - 1] == '\n':
+                stdout = stdout[0:len(stdout) - 1]
+            if stdout != expected:
+                msg = 'For "{}" expected "{}", but got "{}"'.format(test[0], test[1], stdout)
+                self.result = CheckResult(
+                    check_result=STATUS_CHECK_ERROR,
+                    check_message=msg,
+                    tests_passed=tests_passed,
+                    tests_total=len(self.tests)
+                )
                 return
 
             tests_passed += 1
 
-        self.result = {
-            'checkResult': STATUS_OK,
-            'checkMessage': '',
-            'testsPassed': tests_passed,
-            'testsTotal': len(self.tests)
-        }
+        self.result = CheckResult(
+            check_result=STATUS_OK,
+            check_message='',
+            tests_passed=tests_passed,
+            tests_total=len(self.tests)
+        )
 
     def terminate(self):
         self.container.kill()
 
 
-def check_solution(client, container, stdin_file_path, tests):
-    # todo: compile in separate thread to limit compile time?
-    start_time = time.time()
-    compile_result = container.exec_run('/bin/bash -c "cd /root && cp -r source source_w && cd source_w && make"')
-    compile_time = round(time.time() - start_time, 4)
+def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
+    container.exec_run('/bin/bash -c "cp -r /root/source /root/source_w"')
 
-    if compile_result.exit_code != 0:
-        msg = compile_result.output.decode()
-        return {
-            'checkTime': 0,
-            'compileTime': compile_time,
-            'checkResult': STATUS_COMPILE_ERROR,
-            'checkMessage': msg,
-            'testsPassed': 0,
-            'testsTotal': len(tests)
-        }
+    # todo: compile in separate thread to limit compile time?
+    build_time = 0
+    if need_to_build:
+        start_time = time.time()
+        compile_result = container.exec_run('/bin/bash -c "cd /root/source_w && make build"')
+        build_time = round(time.time() - start_time, 4)
+
+        if compile_result.exit_code != 0:
+            msg = compile_result.output.decode()
+            return CheckResult(
+                compile_time=build_time,
+                check_result=STATUS_BUILD_ERROR,
+                check_message=msg,
+                tests_total=len(tests)
+            )
 
     start_time = time.time()
     test_thread = DockerTestThread(client, container, stdin_file_path, tests)
@@ -126,8 +147,8 @@ def check_solution(client, container, stdin_file_path, tests):
         test_thread.join()
 
     result = test_thread.result
-    result['checkTime'] = test_time
-    result['compileTime'] = compile_time
+    result.check_time = test_time
+    result.build_time = build_time
     return result
 
 
@@ -153,7 +174,15 @@ def lint_code(source_path: str, py_files: list) -> str:
     return ''
 
 
-def check_task_multiple_files(source_code, tests):
+def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
+    makefile = source_code.get('Makefile', None)
+    if makefile is None:
+        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='No Makefile found!')
+    if makefile.find('run:') == -1:
+        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must contain "run:"')
+
+    need_to_build = makefile.find('build:') != -1
+
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
     solution_path_input = os.path.join(solution_path, 'input')
@@ -174,14 +203,7 @@ def check_task_multiple_files(source_code, tests):
     lint_message = lint_code(solution_path_source, py_files)
     if lint_message:
         shutil.rmtree(solution_path)
-        return {
-            'checkTime': 0,
-            'compileTime': 0,
-            'checkResult': STATUS_LINT_ERROR,
-            'checkMessage': lint_message,
-            'testsPassed': 0,
-            'testsTotal': len(tests)
-        }
+        return CheckResult(check_result=STATUS_LINT_ERROR, check_message=lint_message, tests_total=len(tests))
 
     client = docker.from_env()
 
@@ -199,7 +221,7 @@ def check_task_multiple_files(source_code, tests):
         mem_limit='64m',
     )
 
-    result = check_solution(client, container, stdin_file_path, tests)
+    result = check_solution(client, container, stdin_file_path, tests, need_to_build)
 
     shutil.rmtree(solution_path)
 
