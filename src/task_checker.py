@@ -17,26 +17,26 @@ STATUS_BUILD_ERROR = 2
 STATUS_RUNTIME_ERROR = 3
 STATUS_CHECK_ERROR = 4
 STATUS_RUNTIME_TIMEOUT = 6
-STATUS_COMPILE_TIMEOUT = 7
+STATUS_BUILD_TIMEOUT = 7
 STATUS_LINT_ERROR = 8
 STATUS_DRAFT = 9
 
 # todo: receive check timeout from backend
-COMPILE_TIMEOUT = 6  # in seconds
+BUILD_TIMEOUT = 4  # in seconds
 RUNTIME_TIMEOUT = 4  # in seconds
 
 
 class CheckResult:
     def __init__(self,
                  check_time: float = 0.0,
-                 compile_time: float = 0.0,
+                 build_time: float = 0.0,
                  check_result: int = -1,
                  check_message: str = '',
                  tests_passed: int = 0,
                  tests_total: int = 0
                  ):
         self.check_time = check_time  # todo: rename to test_time
-        self.build_time = compile_time
+        self.build_time = build_time
         self.check_result = check_result  # todo: rename to status
         self.check_message = check_message  # todo: rename to message
         self.tests_passed = tests_passed
@@ -49,6 +49,22 @@ class CheckResult:
             new_key = key_split[0] + ''.join(word.capitalize() for word in key_split[1:])
             json_data[new_key] = value
         return json.dumps(json_data)
+
+
+class DockerBuildThread(Thread):
+    result = None
+
+    def __init__(self, client, container):
+        super().__init__()
+        self.client = client
+        self.container = container
+
+    def run(self):
+        compile_result = self.container.exec_run('/bin/bash -c "cd /root/source_w && make build"')
+        self.result = compile_result
+
+    def terminate(self):
+        self.container.kill()
 
 
 class DockerTestThread(Thread):
@@ -119,24 +135,34 @@ class DockerTestThread(Thread):
 def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
     container.exec_run('/bin/bash -c "cp -r /root/source /root/source_w"')
 
-    # todo: compile in separate thread to limit compile time?
     build_time = 0
     if need_to_build:
+        build_thread = DockerBuildThread(client, container)
         start_time = time.time()
-        compile_result = container.exec_run('/bin/bash -c "cd /root/source_w && make build"')
+        build_thread.start()
+        build_thread.join(BUILD_TIMEOUT)
         build_time = round(time.time() - start_time, 4)
 
+        compile_result = build_thread.result
+        if compile_result is None:
+            build_thread.terminate()
+            build_thread.join()
+            return CheckResult(
+                build_time=build_time,
+                check_result=STATUS_BUILD_TIMEOUT,
+                tests_total=len(tests)
+            )
         if compile_result.exit_code != 0:
             msg = compile_result.output.decode()
             return CheckResult(
-                compile_time=build_time,
+                build_time=build_time,
                 check_result=STATUS_BUILD_ERROR,
                 check_message=msg,
                 tests_total=len(tests)
             )
 
-    start_time = time.time()
     test_thread = DockerTestThread(client, container, stdin_file_path, tests)
+    start_time = time.time()
     test_thread.start()
     test_thread.join(RUNTIME_TIMEOUT)
     test_time = round(time.time() - start_time, 4)
