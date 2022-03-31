@@ -107,7 +107,7 @@ class DockerTestThread(Thread):
 
             stdout = execute_result.output.decode()
             # it's a practice to add \n on the end of output, but tests don't have it
-            if stdout[len(stdout) - 1] == '\n':
+            if len(stdout) > 0 and stdout[len(stdout) - 1] == '\n':
                 stdout = stdout[0:len(stdout) - 1]
             if stdout != expected:
                 msg = 'For "{}" expected "{}", but got "{}"'.format(test[0], test[1], stdout)
@@ -171,6 +171,7 @@ def check_solution(client, container, stdin_file_path, tests, need_to_build=True
         test_thread.terminate()
         # waiting for container to stop and then thread will exit
         test_thread.join()
+        test_thread.result = CheckResult(check_result=STATUS_RUNTIME_TIMEOUT)
 
     result = test_thread.result
     result.check_time = test_time
