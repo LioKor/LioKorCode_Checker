@@ -1,0 +1,18 @@
+[Unit]
+Description=LioKor Code Checker
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+
+User=liokor
+Group=liokor
+
+WorkingDirectory=/home/liokor/LioKorEdu_Checker/src
+ExecStart=/usr/local/bin/uwsgi ../uwsgi.ini
+
+[Install]
+WantedBy=multi-user.target
