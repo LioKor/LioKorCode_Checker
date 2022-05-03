@@ -222,19 +222,19 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
 
     # todo: move this procedure to container for security reasons (e.g. escape root)
     create_files(source_code, solution_path_source)
-    py_files = []
-    for file in source_code:
-        if get_ext(file) == 'py':
-            py_files.append(file)
+    # py_files = []
+    # for file in source_code:
+    #     if get_ext(file) == 'py':
+    #         py_files.append(file)
 
-    lint_message = lint_code(solution_path_source, py_files)
-    if lint_message:
-        shutil.rmtree(solution_path)
-        return CheckResult(check_result=STATUS_LINT_ERROR, check_message=lint_message, tests_total=len(tests))
+    # lint_message = lint_code(solution_path_source, py_files)
+    # if lint_message:
+    #     shutil.rmtree(solution_path)
+    #     return CheckResult(check_result=STATUS_LINT_ERROR, check_message=lint_message, tests_total=len(tests))
 
     client = docker.from_env()
 
-    container = client.containers.run('gcc', detach=True, tty=True, volumes={
+    container = client.containers.run('liokorcode_checker', detach=True, tty=True, volumes={
             solution_path_input: {
                 'bind': '/root/input',
                 'mode': 'ro'

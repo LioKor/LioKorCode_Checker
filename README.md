@@ -4,7 +4,6 @@
 * sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
 * sudo apt update
 * sudo apt install docker-ce
-* docker pull gcc
 * adduser liokor
 * usermod -aG docker $USER
 * sudo apt install python3-pip
@@ -13,6 +12,7 @@
 * git clone git@github.com:LioKor/LioKorEdu_Checker.git
 * cd LioKorEdu_Checker
 * pip3 install -r requirements.txt
+* docker build -t liokorcode_checker .
 
 ### Docker commands
 * docker ps
