@@ -1,6 +1,7 @@
 from flask import Flask, request, Response
 import json
 
+import config
 from task_checker import check_task_multiple_files
 
 app = Flask(__name__)
@@ -12,15 +13,20 @@ class ResponseJSON(Response):
 
 @app.errorhandler(400)
 def handle_bad_request(e):
-    return json.dumps({'error': 'We accept only correct JSON. AWU.'}), 400
+    return json.dumps({'error': 'We accept only correct JSON.'}), 400
 
 
-@app.route('/check_task/multiple_files', methods=['POST'])
+@app.route('/check_solution', methods=['POST'])
 def check_task_multiple_files_view():
+    api_key = request.args.get('api_key', None)
+    if api_key != config.API_KEY:
+        response = json.dumps({'error': 'You need to provide correct api_key as GET param to access this API'})
+        return ResponseJSON(response, status=401)
+
     task = request.json
 
     if type(task) != dict:
-        response = json.dumps({'error': 'We accept only dict as a root element. WOOF!'})
+        response = json.dumps({'error': 'We accept only dict as a root element.'})
         return ResponseJSON(response, status=400)
 
     source_code, tests = task.get('sourceCode', None), task.get('tests', None)

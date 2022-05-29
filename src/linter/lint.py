@@ -11,15 +11,6 @@ int main() {
 }
 '''
 
-fpc = '''
-var
-    a, b: integer;
-begin
-    readln(a, b);
-    writeln(a + b);
-end.
-'''
-
 
 def lint_c_or_cpp(code: str):
     errors = ''
@@ -65,13 +56,4 @@ def lint_c_or_cpp(code: str):
     return errors
 
 
-# def check_coma_spaces():
-#     pass
-
-# print('C_CPP:')
 print(lint_c_or_cpp(c_cpp))
-
-# print()
-#
-# print('FPC:')
-# print(check_indentation(fpc))

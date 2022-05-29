@@ -12,10 +12,10 @@ print(A + B, end='')
 }
 
 source_code_c = {
-    'Makefile': '''compile: main.c sum.o
+    'Makefile': '''build: main.c sum.o
 	gcc main.c sum.o -o solution
 
-run: solution
+run:
 	./solution
 
 sum.o: lib/sum.h lib/sum.c
@@ -47,5 +47,5 @@ tests = [
 ]
 
 if __name__ == '__main__':
-    result = check_task_multiple_files(source_code_py, tests)
-    print(result)
+    result = check_task_multiple_files(source_code_c, tests)
+    print(result.json())
