@@ -1,4 +1,19 @@
-import os
+from io import BytesIO
+import tarfile
+
+
+def files_to_tar(files: dict, base_path: str) -> BytesIO:
+    bio = BytesIO()
+    tar = tarfile.open(fileobj=bio, mode='w')
+    for name, content in files.items():
+        encoded = content.encode()
+        file = BytesIO(encoded)
+        tarinfo = tarfile.TarInfo(base_path + name)
+        tarinfo.size = len(encoded)
+        tar.addfile(tarinfo, fileobj=file)
+    tar.close()
+    bio.seek(0)
+    return bio
 
 
 def get_ext(path: str) -> str:
@@ -13,17 +28,3 @@ def create_file(path, content, allow_rewrite=True):
     f = open(path, mode)
     f.write(content)
     f.close()
-
-
-def create_files(files, base_path):
-    for path, content in files.items():
-        if path.find('..') != -1 or path.startswith('/') or path.startswith('\\'):
-            raise Exception('Escape root detected!')
-
-        dir = os.path.dirname(path)
-        dir = os.path.join(base_path, dir)
-        if dir and not os.path.exists(dir):
-            os.makedirs(dir)
-
-        path = os.path.join(base_path, path)
-        create_file(path, content, False)

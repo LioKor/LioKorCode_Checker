@@ -1,6 +1,4 @@
 from task_checker import check_task_multiple_files
-import os
-from utils import create_files
 
 source_code_py_file = {
     'Makefile': '''
@@ -33,7 +31,8 @@ run:
 }
 
 source_code_c = {
-    'Makefile': '''build: main.c sum.o
+    'Makefile': '''
+build: main.c sum.o
 	gcc main.c sum.o -o solution
 
 run:
@@ -41,6 +40,7 @@ run:
 
 sum.o: lib/sum.h lib/sum.c
 	gcc -c lib/sum.c''',
+
     'main.c': '''#include "stdio.h"
 
 #include "lib/sum.h"
@@ -64,10 +64,16 @@ int sum(int a, int b) {
 tests = [
     ['1 2', '3'],
     ['4 5', '9'],
+    ['-2 2', '0'],
+    ['1 2', '3'],
+    ['4 5', '9'],
+    ['-2 2', '0'],
+    ['1 2', '3'],
+    ['4 5', '9'],
     ['-2 2', '0']
 ]
 
 if __name__ == '__main__':
-    result = check_task_multiple_files(source_code_py_file, tests)
+    result = check_task_multiple_files(source_code_c, tests)
     print(result.json())
     # create_files(source_code_exploit, os.path.join(os.getcwd(), 'tests', 'exploit'))

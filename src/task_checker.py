@@ -5,6 +5,8 @@ import time
 import subprocess
 import json
 
+import config
+
 import tarfile
 from io import BytesIO
 
@@ -12,7 +14,7 @@ from threading import Thread
 
 from uuid import uuid1
 
-from utils import create_file, create_files, get_ext
+from utils import create_file, files_to_tar
 
 STATUS_OK = 0
 STATUS_CHECKING = 1
@@ -25,8 +27,15 @@ STATUS_LINT_ERROR = 8
 STATUS_DRAFT = 9
 
 # todo: receive check timeout from backend
-BUILD_TIMEOUT = 4  # in seconds
-RUNTIME_TIMEOUT = 4  # in seconds
+BUILD_TIMEOUT = config.DEFAULT_BUILD_TIMEOUT  # in seconds
+RUNTIME_TIMEOUT = config.DEFAULT_TEST_TIMEOUT  # in seconds
+
+
+def remove_container(client, container_id):
+    container = client.containers.get(container_id)
+    if container.status == 'running':
+        container.kill()
+    container.remove()
 
 
 def get_file_from_container(container, fname):
@@ -73,14 +82,15 @@ class CheckResult:
 class DockerBuildThread(Thread):
     result = None
 
-    def __init__(self, client, container):
+    def __init__(self, client, container, source_path):
         super().__init__()
         self.client = client
         self.container = container
+        self.source_path = source_path
 
     def run(self):
-        build_command = '/bin/bash -c "cd /root/source_w && make build"'
-        build_result = self.container.exec_run(build_command)
+        build_command = 'make build'
+        build_result = self.container.exec_run(build_command, workdir=self.source_path)
         self.result = build_result
 
     def terminate(self):
@@ -90,10 +100,11 @@ class DockerBuildThread(Thread):
 class DockerTestThread(Thread):
     result = None
 
-    def __init__(self, client, container, stdin_file_path, tests):
+    def __init__(self, client, container, source_path, stdin_file_path, tests):
         super().__init__()
         self.client = client
         self.container = container
+        self.source_path = source_path
         self.stdin_file_path = stdin_file_path
         self.tests = tests
 
@@ -103,7 +114,7 @@ class DockerTestThread(Thread):
             stdin, expected = test[0], test[1]
 
             create_file(self.stdin_file_path, '{}\n'.format(stdin))
-            source_path = '/root/source_w'
+            source_path = '/root/source'
             input_file_path = '/root/input/input.txt'
             output_file_path = source_path + '/output.txt'
 
@@ -162,11 +173,12 @@ class DockerTestThread(Thread):
         )
 
     def terminate(self):
+        self.container = self.client.containers.get(self.container.id)
         self.container.kill()
 
 
 def build_solution(client, container):
-    build_thread = DockerBuildThread(client, container)
+    build_thread = DockerBuildThread(client, container, '/root/source')
     start_time = time.time()
     build_thread.start()
     build_thread.join(BUILD_TIMEOUT)
@@ -182,10 +194,10 @@ def build_solution(client, container):
 
 
 def test_solution(client, container, stdin_file_path, tests):
-    test_thread = DockerTestThread(client, container, stdin_file_path, tests)
+    test_thread = DockerTestThread(client, container, '/root/source', stdin_file_path, tests)
     start_time = time.time()
     test_thread.start()
-    test_thread.join(RUNTIME_TIMEOUT)
+    test_thread.join(RUNTIME_TIMEOUT * len(tests))
     test_time = round(time.time() - start_time, 4)
 
     if test_thread.result is None:
@@ -197,8 +209,6 @@ def test_solution(client, container, stdin_file_path, tests):
 
 
 def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
-    container.exec_run('/bin/bash -c "cp -r /root/source /root/source_w"')
-
     build_time = .0
     if need_to_build:
         build_result, build_time = build_solution(client, container)
@@ -260,20 +270,20 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     if makefile.find('run:') == -1:
         return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must contain "run:"')
 
+    try:
+        tar_source = files_to_tar(source_code, 'source/')
+    except Exception:
+        raise Exception('Unable to parse source code!')
+
     need_to_build = makefile.find('build:') != -1
 
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
-    solution_path_input = os.path.join(solution_path, 'io')
-    solution_path_source = os.path.join(solution_path, 'source')
-
-    os.makedirs(solution_path_input)
-    os.makedirs(solution_path_source)
-
+    solution_path_input = os.path.join(solution_path, 'input')
     stdin_file_path = os.path.join(solution_path_input, 'input.txt')
 
     # todo: move this procedure to container for security reasons (e.g. escape root)
-    create_files(source_code, solution_path_source)
+    # create_files(source_code, solution_path_source)
     # py_files = []
     # for file in source_code:
     #     if get_ext(file) == 'py':
@@ -291,22 +301,20 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
                 'bind': '/root/input',
                 'mode': 'ro'
             },
-            solution_path_source: {
-                'bind': '/root/source',
-                'mode': 'ro'
-            }
         },
         network_disabled=True,
         mem_limit='64m',
     )
 
+    try:
+        container.put_archive('/root', tar_source.read())
+    except Exception:
+        remove_container(client, container.id)
+        raise Exception('Unable to create requested filesystem!')
+
     result = check_solution(client, container, stdin_file_path, tests, need_to_build)
 
     shutil.rmtree(solution_path)
-
-    container = client.containers.get(container.id)
-    if container.status == 'running':
-        container.kill()
-    container.remove()
+    remove_container(client, container.id)
 
     return result
