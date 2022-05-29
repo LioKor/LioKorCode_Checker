@@ -8,8 +8,9 @@ def get_ext(path: str) -> str:
     return ''
 
 
-def create_file(path, content):
-    f = open(path, 'w')
+def create_file(path, content, allow_rewrite=True):
+    mode = 'w' if allow_rewrite else 'x'
+    f = open(path, mode)
     f.write(content)
     f.close()
 
@@ -25,4 +26,4 @@ def create_files(files, base_path):
             os.makedirs(dir)
 
         path = os.path.join(base_path, path)
-        create_file(path, content)
+        create_file(path, content, False)

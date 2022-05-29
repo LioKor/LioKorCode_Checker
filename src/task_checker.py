@@ -5,6 +5,9 @@ import time
 import subprocess
 import json
 
+import tarfile
+from io import BytesIO
+
 from threading import Thread
 
 from uuid import uuid1
@@ -24,6 +27,22 @@ STATUS_DRAFT = 9
 # todo: receive check timeout from backend
 BUILD_TIMEOUT = 4  # in seconds
 RUNTIME_TIMEOUT = 4  # in seconds
+
+
+def get_file_from_container(container, fname):
+    try:
+        bits, stats = container.get_archive(fname)
+        bio = BytesIO()
+        for chunk in bits:
+            bio.write(chunk)
+        bio.seek(0)
+        tar = tarfile.open(fileobj=bio)
+        content = tar.extractfile(tar.getmembers()[0]).read().decode()
+        tar.close()
+
+        return content
+    except Exception:
+        return None
 
 
 class CheckResult:
@@ -60,8 +79,9 @@ class DockerBuildThread(Thread):
         self.container = container
 
     def run(self):
-        compile_result = self.container.exec_run('/bin/bash -c "cd /root/source_w && make build"')
-        self.result = compile_result
+        build_command = '/bin/bash -c "cd /root/source_w && make build"'
+        build_result = self.container.exec_run(build_command)
+        self.result = build_result
 
     def terminate(self):
         self.container.kill()
@@ -83,7 +103,17 @@ class DockerTestThread(Thread):
             stdin, expected = test[0], test[1]
 
             create_file(self.stdin_file_path, '{}\n'.format(stdin))
-            execute_result = self.container.exec_run('/bin/bash -c "cd /root/source_w && cat /root/input/input.txt | make -s run"')
+            source_path = '/root/source_w'
+            input_file_path = '/root/input/input.txt'
+            output_file_path = source_path + '/output.txt'
+
+            run_command = '/bin/bash -c "rm -f {output_fpath} && cat {input_fpath} | make -s ARGS=\'{input_fpath} {output_fpath}\' run"'.format(
+                input_fpath=input_file_path,
+                output_fpath=output_file_path
+            )
+            execute_result = self.container.exec_run(run_command, workdir=source_path, environment={
+                'ARGS': '{} {}'.format(input_file_path, output_file_path)
+            })
 
             self.container = self.client.containers.get(self.container.id)
             if self.container.status == 'exited':
@@ -95,22 +125,25 @@ class DockerTestThread(Thread):
                 )
                 return
 
+            stdout = execute_result.output.decode()
             if execute_result.exit_code != 0:
-                msg = execute_result.output.decode()
                 self.result = CheckResult(
                     check_result=STATUS_RUNTIME_ERROR,
-                    check_message=msg,
+                    check_message=stdout,
                     tests_passed=0,
                     tests_total=len(self.tests)
                 )
                 return
 
-            stdout = execute_result.output.decode()
-            # it's a practice to add \n on the end of output, but tests don't have it
-            if len(stdout) > 0 and stdout[len(stdout) - 1] == '\n':
-                stdout = stdout[0:len(stdout) - 1]
-            if stdout != expected:
-                msg = 'For "{}" expected "{}", but got "{}"'.format(test[0], test[1], stdout)
+            fout = get_file_from_container(self.container, output_file_path)
+            answer = fout if fout is not None else stdout
+
+            # it's a practice to add \n at the end of output, but usually tests don't have it
+            if len(answer) > 0 and answer[-1] == '\n' and expected[-1] != '\n':
+                answer = answer[0:-1]
+
+            if answer != expected:
+                msg = 'For "{}" expected "{}", but got "{}"'.format(test[0], test[1], answer)
                 self.result = CheckResult(
                     check_result=STATUS_CHECK_ERROR,
                     check_message=msg,
@@ -132,35 +165,23 @@ class DockerTestThread(Thread):
         self.container.kill()
 
 
-def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
-    container.exec_run('/bin/bash -c "cp -r /root/source /root/source_w"')
+def build_solution(client, container):
+    build_thread = DockerBuildThread(client, container)
+    start_time = time.time()
+    build_thread.start()
+    build_thread.join(BUILD_TIMEOUT)
+    build_time = round(time.time() - start_time, 4)
 
-    build_time = 0
-    if need_to_build:
-        build_thread = DockerBuildThread(client, container)
-        start_time = time.time()
-        build_thread.start()
-        build_thread.join(BUILD_TIMEOUT)
-        build_time = round(time.time() - start_time, 4)
+    compile_result = build_thread.result
+    if compile_result is None:
+        build_thread.terminate()
+        # waiting for container to stop and then thread will exit
+        build_thread.join()
 
-        compile_result = build_thread.result
-        if compile_result is None:
-            build_thread.terminate()
-            build_thread.join()
-            return CheckResult(
-                build_time=build_time,
-                check_result=STATUS_BUILD_TIMEOUT,
-                tests_total=len(tests)
-            )
-        if compile_result.exit_code != 0:
-            msg = compile_result.output.decode()
-            return CheckResult(
-                build_time=build_time,
-                check_result=STATUS_BUILD_ERROR,
-                check_message=msg,
-                tests_total=len(tests)
-            )
+    return compile_result, build_time
 
+
+def test_solution(client, container, stdin_file_path, tests):
     test_thread = DockerTestThread(client, container, stdin_file_path, tests)
     start_time = time.time()
     test_thread.start()
@@ -171,11 +192,42 @@ def check_solution(client, container, stdin_file_path, tests, need_to_build=True
         test_thread.terminate()
         # waiting for container to stop and then thread will exit
         test_thread.join()
-        test_thread.result = CheckResult(check_result=STATUS_RUNTIME_TIMEOUT)
 
-    result = test_thread.result
+    return test_thread.result, test_time
+
+
+def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
+    container.exec_run('/bin/bash -c "cp -r /root/source /root/source_w"')
+
+    build_time = .0
+    if need_to_build:
+        build_result, build_time = build_solution(client, container)
+
+        if build_result is None:
+            return CheckResult(
+                build_time=build_time,
+                check_result=STATUS_BUILD_TIMEOUT,
+                tests_total=len(tests)
+            )
+
+        if build_result.exit_code != 0:
+            msg = build_result.output.decode()
+            return CheckResult(
+                build_time=build_time,
+                check_result=STATUS_BUILD_ERROR,
+                check_message=msg,
+                tests_total=len(tests)
+            )
+
+    test_result, test_time = test_solution(client, container, stdin_file_path, tests)
+
+    if test_result is None:
+        test_result = CheckResult(check_result=STATUS_RUNTIME_TIMEOUT)
+
+    result = test_result
     result.check_time = test_time
     result.build_time = build_time
+
     return result
 
 
@@ -212,7 +264,7 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
 
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
-    solution_path_input = os.path.join(solution_path, 'input')
+    solution_path_input = os.path.join(solution_path, 'io')
     solution_path_source = os.path.join(solution_path, 'source')
 
     os.makedirs(solution_path_input)

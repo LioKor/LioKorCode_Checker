@@ -1,14 +1,35 @@
 from task_checker import check_task_multiple_files
+import os
+from utils import create_files
 
-source_code_py = {
-    'Makefile': '''compile:
-	echo wolf
+source_code_py_file = {
+    'Makefile': '''
 run:
-	python3 main.py
+	python3 main.py $(ARGS)
 ''',
-    'main.py': '''A, B = list(map(int, input().split()))
-print(A + B, end='')
+    'main.py': '''
+import sys
+
+fin_path = sys.argv[1]
+fin = open(fin_path, 'r')
+a, b = map(int, fin.read().split())
+fin.close()
+# a, b = map(int, input().split())
+# print(a + b)
+
+fout_path = sys.argv[2]
+print(fout_path)
+fout = open(fout_path, 'w')
+fout.write(str(a + b))
+fout.close()
 '''
+}
+
+source_code_exploit = {
+    'Makefile && echo wolf': '''
+run:
+	python3 main.py $(ARGS)
+''',
 }
 
 source_code_c = {
@@ -47,5 +68,6 @@ tests = [
 ]
 
 if __name__ == '__main__':
-    result = check_task_multiple_files(source_code_c, tests)
+    result = check_task_multiple_files(source_code_py_file, tests)
     print(result.json())
+    # create_files(source_code_exploit, os.path.join(os.getcwd(), 'tests', 'exploit'))

@@ -17,7 +17,7 @@ def handle_bad_request(e):
 
 
 @app.route('/check_solution', methods=['POST'])
-def check_task_multiple_files_view():
+def check_solution_view():
     api_key = request.args.get('api_key', None)
     if api_key != config.API_KEY:
         response = json.dumps({'error': 'You need to provide correct api_key as GET param to access this API'})
