@@ -1,26 +1,45 @@
-import unittest
-
-
-def lint_c_or_cpp(code: str):
+def lint_code(code: str):
     errors = []
 
     indent_level = 0
     space_length = None
-    line_number = 0
 
+    line_number = 0
     for line in code.split('\n'):
         line_number += 1
 
-        has_end_block = line.find('}') != -1
-        if has_end_block:
-            indent_level -= 1
+        if len(line) == 0:
+            continue
+
+        is_string = False
+        is_comment = False
 
         current_indent = 0
         indent_symbol = None
         need_indentation_check = True
         checking_indentation = True
-        for i in range(0, len(line)):
-            c = line[i]
+
+        prev_c = None
+        c = None
+        next_c = line[0]
+
+        indent_level_diff_pos = 0
+        indent_level_diff_neg = 0
+        len_line = len(line)
+        for i in range(0, len_line):
+            prev_c, c, next_c = None if c is None else c, next_c, None if i == len_line - 1 else line[i + 1]
+
+            if not is_comment and c == '"' and prev_c != '\\':
+                is_string = False if is_string else True
+
+            if not is_string and c == '/' and next_c == '/':
+                is_comment = True
+
+            if not is_string and not is_comment:
+                if c == '{':
+                    indent_level_diff_pos += 1
+                elif c == '}':
+                    indent_level_diff_neg -= 1
 
             if checking_indentation:
                 if c != '\t' and c != ' ':
@@ -34,19 +53,20 @@ def lint_c_or_cpp(code: str):
                         'line': line_number,
                         'error': 'indentation/mix'
                     })
-                    break
+                    checking_indentation = False
                 indent_symbol = c
                 current_indent += 1
-            elif c == ',':
-                l = len(line)
+            elif not is_string and not is_comment and c == ',':
                 before_space = i > 0 and line[i - 1] == ' '
-                no_space = i < l - 1 and line[i + 1] != ' '
-                extra_space = i < l - 2 and line[i + 2] == ' '
+                no_space = i < len_line - 1 and line[i + 1] != ' '
+                extra_space = i < len_line - 2 and line[i + 2] == ' '
                 if before_space or no_space or extra_space:
                     errors.append({
                         'line': line_number,
                         'error': 'spaces/punctuation'
                     })
+
+        indent_level += indent_level_diff_neg
 
         if need_indentation_check:
             expected_indent = indent_level
@@ -58,43 +78,12 @@ def lint_c_or_cpp(code: str):
                     'error': 'indentation/bad'
                 })
 
-        has_new_block = line.find('{') != -1
-        if has_new_block:
-            indent_level += 1
+        indent_level += indent_level_diff_pos
+
+    if len(code) > 0 and code[-1] != '\n':
+        errors.append({
+            'line': line_number,
+            'error': 'line/noendnewline'
+        })
 
     return errors
-
-
-class LinterTest(unittest.TestCase):
-    def test_lint_files(self):
-        test_cases = [
-            ['test_cases/c_good_file.c', []],
-            ['test_cases/c_almost_good_file.c', [
-                {'line': 4, 'error': 'spaces/punctuation'},
-                {'line': 6, 'error': 'indentation/bad'}
-            ]],
-            ['test_cases/c_bad_file.c', [
-                {'line': 5, 'error': 'indentation/bad'},
-                {'line': 6, 'error': 'indentation/bad'},
-                {'line': 7, 'error': 'indentation/bad'},
-                {'line': 9, 'error': 'indentation/bad'},
-            ]]
-        ]
-
-        for case in test_cases:
-            file = case[0]
-            expected = case[1]
-
-            f = open(file)
-            result = lint_c_or_cpp(f.read())
-            f.close()
-
-            self.assertEqual(len(result), len(expected), msg=result)
-
-            for got, exp in zip(result, expected):
-                self.assertEqual(got['line'], exp['line'])
-                self.assertEqual(got['error'], exp['error'])
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -5,6 +5,6 @@ int main() {
     if (a > b) {
        printf("TRUE");
     } else {
-        printf("FALSE");
+    	printf("FALSE");
     }
 }

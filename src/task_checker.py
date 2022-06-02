@@ -270,12 +270,12 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     if makefile.find('run:') == -1:
         return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must contain "run:"')
 
+    need_to_build = makefile.find('build:') != -1
+
     try:
         tar_source = files_to_tar(source_code, 'source/')
     except Exception:
         raise Exception('Unable to parse source code!')
-
-    need_to_build = makefile.find('build:') != -1
 
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)

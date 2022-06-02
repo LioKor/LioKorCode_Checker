@@ -2,9 +2,9 @@
 
 int main() {
     int a, b;
-    if (a > b) {
-        printf("TRUE");
-    } else {
+if (a > b) {
+printf("TRUE");
+} else {
         printf("FALSE");
-    }
+}
 }
