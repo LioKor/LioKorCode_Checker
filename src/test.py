@@ -52,12 +52,14 @@ int main() {
     printf("%d", sum(a, b));
     
     return 0;
-}''',
+}
+''',
     'lib/sum.c': '''#include "sum.h"
 
 int sum(int a, int b) {
     return a + b;
-}''',
+}
+''',
     'lib/sum.h': '''int sum(int, int);'''
 }
 
@@ -76,4 +78,3 @@ tests = [
 if __name__ == '__main__':
     result = check_task_multiple_files(source_code_c, tests)
     print(result.json())
-    # create_files(source_code_exploit, os.path.join(os.getcwd(), 'tests', 'exploit'))

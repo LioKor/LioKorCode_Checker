@@ -2,7 +2,6 @@ import docker
 import os
 import shutil
 import time
-import subprocess
 import json
 
 import config
@@ -14,6 +13,7 @@ from threading import Thread
 
 from uuid import uuid1
 
+from linter.lint import lint_code
 from utils import create_file, files_to_tar
 
 STATUS_OK = 0
@@ -36,6 +36,16 @@ def remove_container(client, container_id):
     if container.status == 'running':
         container.kill()
     container.remove()
+
+
+def lint_errors_to_str(lint_errors: dict):
+    str_lint = ''
+    for file, errors in lint_errors.items():
+        str_lint += '--- ' + file + ':\n'
+        for error in errors:
+            str_lint += '* Line {}: {}'.format(error['line'], error['error'])
+        str_lint += '\n'
+    return str_lint
 
 
 def get_file_from_container(container, fname):
@@ -61,7 +71,8 @@ class CheckResult:
                  check_result: int = -1,
                  check_message: str = '',
                  tests_passed: int = 0,
-                 tests_total: int = 0
+                 tests_total: int = 0,
+                 lint_success: bool = False,
                  ):
         self.check_time = check_time  # todo: rename to test_time
         self.build_time = build_time
@@ -69,6 +80,7 @@ class CheckResult:
         self.check_message = check_message  # todo: rename to message
         self.tests_passed = tests_passed
         self.tests_total = tests_total
+        self.lint_success = lint_success
 
     def json(self) -> str:
         json_data = {}
@@ -241,28 +253,6 @@ def check_solution(client, container, stdin_file_path, tests, need_to_build=True
     return result
 
 
-def lint_code(source_path: str, py_files: list) -> str:
-    result = subprocess.run(
-        ['python', '-m', 'cpplint', '--filter=-legal,-build/include_subdir,-whitespace/tab', '--recursive', '--repository={}'.format(source_path), '.'],
-        cwd=source_path,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    if result.returncode != 0:
-        return result.stderr.decode()
-
-    if len(py_files) > 0:
-        cmd = ['python', '-m', 'pylint', '--disable=missing-docstring']
-        cmd.extend(py_files)
-        result = subprocess.run(
-            cmd, cwd=source_path,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        if result.returncode != 0:
-            return result.stdout.decode()
-
-    return ''
-
-
 def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     makefile = source_code.get('Makefile', None)
     if makefile is None:
@@ -281,18 +271,6 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
     solution_path_input = os.path.join(solution_path, 'input')
     stdin_file_path = os.path.join(solution_path_input, 'input.txt')
-
-    # todo: move this procedure to container for security reasons (e.g. escape root)
-    # create_files(source_code, solution_path_source)
-    # py_files = []
-    # for file in source_code:
-    #     if get_ext(file) == 'py':
-    #         py_files.append(file)
-
-    # lint_message = lint_code(solution_path_source, py_files)
-    # if lint_message:
-    #     shutil.rmtree(solution_path)
-    #     return CheckResult(check_result=STATUS_LINT_ERROR, check_message=lint_message, tests_total=len(tests))
 
     client = docker.from_env()
 
@@ -313,6 +291,20 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
         raise Exception('Unable to create requested filesystem!')
 
     result = check_solution(client, container, stdin_file_path, tests, need_to_build)
+
+    if result.check_result == STATUS_OK:
+        lint_errors = {}
+        for name, content in source_code.items():
+            if name.endswith('.c') or name.endswith('.cpp') or name.endswith('.go'):
+                lint_result = lint_code(content)
+                if len(lint_result) > 0:
+                    lint_errors[name] = lint_result
+
+        str_lint = lint_errors_to_str(lint_errors)
+
+        result.lint_success = len(str_lint) == 0
+        if not result.lint_success:
+            result.check_message += '\n{}'.format(str_lint)
 
     shutil.rmtree(solution_path)
     remove_container(client, container.id)
