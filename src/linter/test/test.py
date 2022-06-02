@@ -17,14 +17,33 @@ class LinterTest(unittest.TestCase):
                 {'line': 6, 'error': 'indentation/bad'},
                 {'line': 7, 'error': 'indentation/bad'},
                 {'line': 9, 'error': 'indentation/bad'},
-                {'line': 10, 'error': 'line/noendnewline'}
+                {'line': 10, 'error': 'line/noendnewline'},
             ]],
             ['test_cases/c_strings.c', [
                 {'line': 9, 'error': 'indentation/bad'},
             ]],
             ['test_cases/empty_file.c', [
             ]],
-            ['test_cases/c_comments.c', []]
+            ['test_cases/c_comments.c', []],
+            ['test_cases/c_one_liners.c', [
+                {'line': 1, 'error': 'indentation/bad'},
+                {'line': 1, 'error': 'line/noendnewline'},
+            ]],
+            ['test_cases/c_very_bad_file.c', [
+                {'line': 4, 'error': 'spaces/punctuation'},
+                {'line': 4, 'error': 'indentation/bad'},
+                {'line': 5, 'error': 'spaces/punctuation'},
+                {'line': 5, 'error': 'spaces/punctuation'},
+                {'line': 5, 'error': 'indentation/bad'},
+                {'line': 6, 'error': 'indentation/bad'},
+                {'line': 7, 'error': 'spaces/punctuation'},
+                {'line': 7, 'error': 'indentation/bad'},
+                {'line': 8, 'error': 'indentation/bad'},
+                {'line': 9, 'error': 'indentation/bad'},
+                {'line': 10, 'error': 'indentation/bad'},
+                {'line': 11, 'error': 'indentation/bad'},
+                {'line': 12, 'error': 'line/noendnewline'}
+            ]]
         ]
 
         for case in test_cases:
