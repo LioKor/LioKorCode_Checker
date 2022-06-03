@@ -1,29 +1,40 @@
-### Docker setup on a new server (Ubuntu 22.04 LTS):
-1. sudo apt update && sudo apt install apt-transport-https ca-certificates curl software-properties-common
-2. curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-3. sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
-4. sudo apt update && sudo apt install docker-ce nginx
-5. sudo rm /etc/nginx/sites-enabled/default
-6. sudo nano /etc/nginx/sites-available/liokor_code_checker
-7. *paste nginx.config into opened file*
-8. ln -s /etc/nginx/sites-available/liokor_code_checker /etc/nginx/sites-enabled/liokor_code_checker
-9. sudo service nginx restart
-10. sudo adduser liokor 
-11. sudo usermod -aG docker liokor 
-12. sudo apt install python3-pip 
-13. pip3 install uwsgi 
-14. sudo su liokor && cd ~
-15. git clone https://github.com/LioKor/LioKorEdu_Checker.git
-16. cd LioKorEdu_Checker 
-17. pip3 install -r requirements.txt 
-18. cp config.template.py config.py && nano config.py
-19. docker build -t liokorcode_checker .
-20. exit
-21. sudo cp /home/liokor/LioKorEdu_Checker/liokor_code_checker.service /etc/systemd/system
-22. sudo systemctl enable liokor_code_checker
-23. sudo service liokor_code_checker start
+# LioKor Code Checker
 
-### Docker commands
+Service for checking arbitrary code in Docker container using predefined tests. 
+Written in python3. Uses dockerpy to control Docker containers and Flask to receive check requests.
+
+## Setup (Ubuntu 22.04 LTS, as root):
+
+### Install required programs:
+1. `apt update && apt install apt-transport-https ca-certificates curl software-properties-common`
+2. `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -`
+3. `add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"`
+4. `apt update && apt install docker-ce nginx python3-pip`
+5. `pip3 install uwsgi`
+
+### Create and setup "liokor" user:
+1. `adduser liokor`
+2. `usermod -aG docker liokor`
+3. `su liokor && cd ~`
+4. `git clone https://github.com/LioKor/LioKorEdu_Checker.git`
+5. `cd LioKorEdu_Checker`
+6. `pip3 install -r requirements.txt`
+7. `cp config.template.py config.py && nano config.py`
+8. `docker build -t liokorcode_checker .`
+9. `exit`
+
+### Setup service
+1. `cp /home/liokor/LioKorEdu_Checker/system_configs/liokor_code_checker.service /etc/systemd/system/`
+2. `systemctl enable liokor_code_checker`
+3. `service liokor_code_checker start`
+
+### Setup nginx:
+1. `rm /etc/nginx/sites-enabled/default`
+2. `cp /home/liokor/LioKorEdu_Checker/system_configs/nginx.config /etc/nginx/sites-available/liokor_code_checker`
+3. `ln -s /etc/nginx/sites-available/liokor_code_checker /etc/nginx/sites-enabled/liokor_code_checker`
+4. `service nginx restart`
+
+## Docker commands
 * docker ps
 * docker ps -a
 * docker rm $(docker ps --filter status=exited -q)
