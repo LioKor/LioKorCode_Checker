@@ -117,6 +117,17 @@ run:
 '''
 }
 
+source_code_py_wrong = {
+    'Makefile': '''
+run:
+	python3 main.py
+''',
+    'main.py': '''
+a, b = map(int, input().split())
+print(3)    
+'''
+}
+
 
 class SolutionCheckerTest(unittest.TestCase):
     tests = [
@@ -148,10 +159,12 @@ class SolutionCheckerTest(unittest.TestCase):
     def test_error_build(self):
         result = sc.check_task_multiple_files(source_code_bad_build, self.tests)
         self.assertEqual(result.check_result, sc.STATUS_BUILD_ERROR)
+        self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_runtime(self):
         result = sc.check_task_multiple_files(source_code_bad_runtime, self.tests)
         self.assertEqual(result.check_result, sc.STATUS_RUNTIME_ERROR)
+        self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_build_timeout(self):
         result = sc.check_task_multiple_files(source_code_build_timeout, self.tests)
@@ -160,6 +173,12 @@ class SolutionCheckerTest(unittest.TestCase):
     def test_error_runtime_timeout(self):
         result = sc.check_task_multiple_files(source_code_runtime_timeout, [['1 2', '3']])
         self.assertEqual(result.check_result, sc.STATUS_RUNTIME_TIMEOUT, msg=result.json())
+
+    def test_error_test_error(self):
+        result = sc.check_task_multiple_files(source_code_py_wrong, self.tests)
+        self.assertEqual(result.check_result, sc.STATUS_TEST_ERROR, msg=result.json())
+        self.assertEqual(result.tests_passed, 1)
+        self.assertNotEqual(len(result.check_message), 0)
 
 
 if __name__ == '__main__':
