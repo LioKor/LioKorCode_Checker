@@ -232,6 +232,8 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     solution_dir = str(uuid1())
     solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
     solution_path_input = os.path.join(solution_path, 'input')
+    os.makedirs(solution_path_input)
+
     stdin_file_path = os.path.join(solution_path_input, 'input.txt')
 
     client = docker.from_env()
