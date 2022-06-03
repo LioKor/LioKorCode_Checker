@@ -143,13 +143,14 @@ def test_solution(client, container, tests):
     test_thread.start()
     test_thread.join(RUNTIME_TIMEOUT * len(tests))
     test_time = round(time.time() - start_time, 4)
+    result = test_thread.result
 
-    if test_thread.result is None:
+    if result is None:
         test_thread.terminate()
         # waiting for container to stop and then thread will exit
         test_thread.join()
 
-    return test_thread.result, test_time
+    return result, test_time
 
 
 def check_solution(client, container, tests, need_to_build=True):
