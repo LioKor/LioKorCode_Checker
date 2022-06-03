@@ -9,14 +9,19 @@
 8. ln -s /etc/nginx/sites-available/liokor_code_checker /etc/nginx/sites-enabled/liokor_code_checker
 9. sudo service nginx restart
 10. sudo adduser liokor 
-11. sudo usermod -aG docker $USER 
+11. sudo usermod -aG docker liokor 
 12. sudo apt install python3-pip 
 13. pip3 install uwsgi 
 14. sudo su liokor && cd ~
 15. git clone https://github.com/LioKor/LioKorEdu_Checker.git
 16. cd LioKorEdu_Checker 
 17. pip3 install -r requirements.txt 
-18. docker build -t liokorcode_checker .
+18. cp config.template.py config.py && nano config.py
+19. docker build -t liokorcode_checker .
+20. exit
+21. sudo cp /home/liokor/LioKorEdu_Checker/liokor_code_checker.service /etc/systemd/system
+22. sudo systemctl enable liokor_code_checker
+23. sudo service liokor_code_checker start
 
 ### Docker commands
 * docker ps
