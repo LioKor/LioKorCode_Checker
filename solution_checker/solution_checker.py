@@ -6,15 +6,15 @@ import json
 
 import config
 
-import tarfile
-from io import BytesIO
-
 from threading import Thread
 
 from uuid import uuid1
 
-from linter.lint import lint_code
-from utils import create_file, files_to_tar
+from solution_checker.utils import create_file, files_to_tar
+from solution_checker.docker_utils import remove_container, get_file_from_container
+
+from linter.linter import lint_dict, lint_errors_to_str
+
 
 STATUS_OK = 0
 STATUS_CHECKING = 1
@@ -29,39 +29,6 @@ STATUS_DRAFT = 9
 # todo: receive check timeout from backend
 BUILD_TIMEOUT = config.DEFAULT_BUILD_TIMEOUT  # in seconds
 RUNTIME_TIMEOUT = config.DEFAULT_TEST_TIMEOUT  # in seconds
-
-
-def remove_container(client, container_id):
-    container = client.containers.get(container_id)
-    if container.status == 'running':
-        container.kill()
-    container.remove()
-
-
-def lint_errors_to_str(lint_errors: dict):
-    str_lint = ''
-    for file, errors in lint_errors.items():
-        str_lint += '--- ' + file + ':\n'
-        for error in errors:
-            str_lint += '* Line {}: {}'.format(error['line'], error['error'])
-        str_lint += '\n'
-    return str_lint
-
-
-def get_file_from_container(container, fname):
-    try:
-        bits, stats = container.get_archive(fname)
-        bio = BytesIO()
-        for chunk in bits:
-            bio.write(chunk)
-        bio.seek(0)
-        tar = tarfile.open(fileobj=bio)
-        content = tar.extractfile(tar.getmembers()[0]).read().decode()
-        tar.close()
-
-        return content
-    except Exception:
-        return None
 
 
 class CheckResult:
@@ -293,13 +260,7 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     result = check_solution(client, container, stdin_file_path, tests, need_to_build)
 
     if result.check_result == STATUS_OK:
-        lint_errors = {}
-        for name, content in source_code.items():
-            if name.endswith('.c') or name.endswith('.cpp') or name.endswith('.go'):
-                lint_result = lint_code(content)
-                if len(lint_result) > 0:
-                    lint_errors[name] = lint_result
-
+        lint_errors = lint_dict(source_code)
         str_lint = lint_errors_to_str(lint_errors)
 
         result.lint_success = len(str_lint) == 0

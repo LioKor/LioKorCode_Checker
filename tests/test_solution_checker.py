@@ -1,4 +1,4 @@
-from task_checker import check_task_multiple_files
+from solution_checker.solution_checker import check_task_multiple_files
 
 source_code_py_file = {
     'Makefile': '''

@@ -1,3 +1,27 @@
+def lint_dict(source_code: dict):
+    lint_errors = {}
+    for name, content in source_code.items():
+        if name.endswith('.c') or name.endswith('.cpp') or name.endswith('.go'):
+            try:
+                lint_result = lint_code(content)
+            except Exception as e:
+                print(e)
+                lint_result = {}
+            if len(lint_result) > 0:
+                lint_errors[name] = lint_result
+    return lint_errors
+
+
+def lint_errors_to_str(lint_errors: dict):
+    str_lint = ''
+    for file, errors in lint_errors.items():
+        str_lint += '--- ' + file + ':\n'
+        for error in errors:
+            str_lint += '* Line {}: {}'.format(error['line'], error['error'])
+        str_lint += '\n'
+    return str_lint
+
+
 def lint_code(code: str):
     errors = []
 

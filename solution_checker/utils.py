@@ -16,13 +16,6 @@ def files_to_tar(files: dict, base_path: str) -> BytesIO:
     return bio
 
 
-def get_ext(path: str) -> str:
-    arr = path.split('.')
-    if len(arr) > 1:
-        return arr[len(arr) - 1]
-    return ''
-
-
 def create_file(path, content, allow_rewrite=True):
     mode = 'w' if allow_rewrite else 'x'
     f = open(path, mode)

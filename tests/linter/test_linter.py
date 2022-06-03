@@ -1,6 +1,6 @@
 import unittest
 
-from src.linter.lint import lint_code
+import linter.linter as linter
 
 
 class LinterTest(unittest.TestCase):
@@ -51,7 +51,7 @@ class LinterTest(unittest.TestCase):
             expected = case[1]
 
             f = open(file)
-            result = lint_code(f.read())
+            result = linter.lint_code(f.read())
             f.close()
 
             self.assertEqual(len(result), len(expected), msg=file + ': ' + str(result))

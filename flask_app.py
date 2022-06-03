@@ -2,7 +2,7 @@ from flask import Flask, request, Response
 import json
 
 import config
-from task_checker import check_task_multiple_files
+from solution_checker.solution_checker import check_task_multiple_files
 
 app = Flask(__name__)
 
