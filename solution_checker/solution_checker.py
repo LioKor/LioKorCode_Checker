@@ -1,13 +1,9 @@
 import docker
-import os
-import shutil
 import time
 
 import config
 
 from threading import Thread
-
-from uuid import uuid1
 
 from solution_checker.models import CheckResult
 from solution_checker.utils import files_to_tar
@@ -52,12 +48,11 @@ class DockerBuildThread(Thread):
 class DockerTestThread(Thread):
     result = None
 
-    def __init__(self, client, container, source_path, stdin_file_path, tests):
+    def __init__(self, client, container, source_path, tests):
         super().__init__()
         self.client = client
         self.container = container
         self.source_path = source_path
-        self.stdin_file_path = stdin_file_path
         self.tests = tests
 
     def run(self):
@@ -143,8 +138,8 @@ def build_solution(client, container):
     return compile_result, build_time
 
 
-def test_solution(client, container, stdin_file_path, tests):
-    test_thread = DockerTestThread(client, container, '/root/source', stdin_file_path, tests)
+def test_solution(client, container, tests):
+    test_thread = DockerTestThread(client, container, '/root/source', tests)
     start_time = time.time()
     test_thread.start()
     test_thread.join(RUNTIME_TIMEOUT * len(tests))
@@ -158,7 +153,7 @@ def test_solution(client, container, stdin_file_path, tests):
     return test_thread.result, test_time
 
 
-def check_solution(client, container, stdin_file_path, tests, need_to_build=True):
+def check_solution(client, container, tests, need_to_build=True):
     build_time = .0
     if need_to_build:
         build_result, build_time = build_solution(client, container)
@@ -179,7 +174,7 @@ def check_solution(client, container, stdin_file_path, tests, need_to_build=True
                 tests_total=len(tests)
             )
 
-    test_result, test_time = test_solution(client, container, stdin_file_path, tests)
+    test_result, test_time = test_solution(client, container, tests)
 
     if test_result is None:
         test_result = CheckResult(check_result=STATUS_RUNTIME_TIMEOUT)
@@ -205,13 +200,6 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     except Exception:
         raise Exception('Unable to parse source code!')
 
-    solution_dir = str(uuid1())
-    solution_path = os.path.join(os.getcwd(), 'solutions', solution_dir)
-    solution_path_input = os.path.join(solution_path, 'input')
-    os.makedirs(solution_path_input)
-
-    stdin_file_path = os.path.join(solution_path_input, 'input.txt')
-
     client = docker.from_env()
 
     container = client.containers.run(
@@ -228,7 +216,7 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
         remove_container(client, container.id)
         raise Exception('Unable to create requested filesystem!')
 
-    result = check_solution(client, container, stdin_file_path, tests, need_to_build)
+    result = check_solution(client, container, tests, need_to_build)
 
     if result.check_result == STATUS_OK:
         lint_errors = lint_dict(source_code)
@@ -238,7 +226,6 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
         if not result.lint_success:
             result.check_message += '\n{}'.format(str_lint)
 
-    shutil.rmtree(solution_path)
     remove_container(client, container.id)
 
     return result
