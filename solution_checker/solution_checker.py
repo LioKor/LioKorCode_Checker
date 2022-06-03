@@ -60,7 +60,6 @@ class DockerTestThread(Thread):
 
         result = CheckResult(tests_total=len(self.tests))
 
-        source_path = '/root/source'
         io_directory_path = '/root/io'
         input_file_path = io_directory_path + '/input.txt'
         output_file_path = io_directory_path + '/output.txt'
@@ -75,7 +74,7 @@ class DockerTestThread(Thread):
                 input_fpath=input_file_path,
                 output_fpath=output_file_path
             )
-            execute_result = self.container.exec_run(run_command, workdir=source_path, environment={
+            execute_result = self.container.exec_run(run_command, workdir=self.source_path, environment={
                 'ARGS': '{} {}'.format(input_file_path, output_file_path),
                 'input_path': input_file_path,
                 'output_path': output_file_path
