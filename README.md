@@ -34,6 +34,12 @@ Written in python3. Uses dockerpy to control Docker containers and Flask to rece
 3. `ln -s /etc/nginx/sites-available/liokor_code_checker /etc/nginx/sites-enabled/liokor_code_checker`
 4. `service nginx restart`
 
+### Setup balancer (if needed):
+1. `cp /home/liokor/LioKorEdu_Checker/system_configs/nginx_balancer.config /etc/nginx/sites-available/liokor_code_checker_balancer`
+2. `nano /etc/nginx/sites-available/liokor_code_checker_balancer`
+3. `ln -s /etc/nginx/sites-available/liokor_code_checker_balancer /etc/nginx/sites-enabled/liokor_code_checker_balancer`
+4. `service nginx restart`
+
 ## Docker commands
 * docker ps
 * docker ps -a

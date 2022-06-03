@@ -14,10 +14,3 @@ def files_to_tar(files: dict, base_path: str) -> BytesIO:
     tar.close()
     bio.seek(0)
     return bio
-
-
-def create_file(path, content, allow_rewrite=True):
-    mode = 'w' if allow_rewrite else 'x'
-    f = open(path, mode)
-    f.write(content)
-    f.close()

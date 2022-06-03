@@ -2,7 +2,6 @@ import docker
 import os
 import shutil
 import time
-import json
 
 import config
 
@@ -10,8 +9,9 @@ from threading import Thread
 
 from uuid import uuid1
 
-from solution_checker.utils import create_file, files_to_tar
-from solution_checker.docker_utils import remove_container, get_file_from_container
+from solution_checker.models import CheckResult
+from solution_checker.utils import files_to_tar
+from solution_checker.docker_utils import remove_container, get_file_from_container, put_file_to_container
 
 from linter.linter import lint_dict, lint_errors_to_str
 
@@ -29,33 +29,6 @@ STATUS_DRAFT = 9
 # todo: receive check timeout from backend
 BUILD_TIMEOUT = config.DEFAULT_BUILD_TIMEOUT  # in seconds
 RUNTIME_TIMEOUT = config.DEFAULT_TEST_TIMEOUT  # in seconds
-
-
-class CheckResult:
-    def __init__(self,
-                 check_time: float = 0.0,
-                 build_time: float = 0.0,
-                 check_result: int = -1,
-                 check_message: str = '',
-                 tests_passed: int = 0,
-                 tests_total: int = 0,
-                 lint_success: bool = False,
-                 ):
-        self.check_time = check_time  # todo: rename to test_time
-        self.build_time = build_time
-        self.check_result = check_result  # todo: rename to status
-        self.check_message = check_message  # todo: rename to message
-        self.tests_passed = tests_passed
-        self.tests_total = tests_total
-        self.lint_success = lint_success
-
-    def json(self) -> str:
-        json_data = {}
-        for key, value in self.__dict__.items():
-            key_split = key.split('_')
-            new_key = key_split[0] + ''.join(word.capitalize() for word in key_split[1:])
-            json_data[new_key] = value
-        return json.dumps(json_data)
 
 
 class DockerBuildThread(Thread):
@@ -92,13 +65,16 @@ class DockerTestThread(Thread):
 
         result = CheckResult(tests_total=len(self.tests))
 
+        source_path = '/root/source'
+        io_directory_path = '/root/io'
+        input_file_path = io_directory_path + '/input.txt'
+        output_file_path = io_directory_path + '/output.txt'
+
+        self.container.exec_run('mkdir -p {}'.format(io_directory_path))
         for test in self.tests:
             stdin, expected = test[0], test[1]
 
-            create_file(self.stdin_file_path, '{}\n'.format(stdin))
-            source_path = '/root/source'
-            input_file_path = '/root/input/input.txt'
-            output_file_path = source_path + '/output.txt'
+            put_file_to_container(self.container, input_file_path, stdin)
 
             run_command = '/bin/bash -c "rm -f {output_fpath} && cat {input_fpath} | make -s ARGS=\'{input_fpath} {output_fpath}\' run"'.format(
                 input_fpath=input_file_path,
@@ -220,7 +196,7 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     if makefile is None:
         return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='No Makefile found!')
     if makefile.find('run:') == -1:
-        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must contain "run:"')
+        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must at least contain "run:"')
 
     need_to_build = makefile.find('build:') != -1
 
@@ -238,14 +214,12 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
 
     client = docker.from_env()
 
-    container = client.containers.run('liokorcode_checker', detach=True, tty=True, volumes={
-            solution_path_input: {
-                'bind': '/root/input',
-                'mode': 'ro'
-            },
-        },
+    container = client.containers.run(
+        'liokorcode_checker',
+        detach=True,
+        tty=True,
         network_disabled=True,
-        mem_limit='64m',
+        mem_limit='128m',
     )
 
     try:
