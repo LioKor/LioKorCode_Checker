@@ -89,6 +89,9 @@ class DockerTestThread(Thread):
 
     def run(self):
         tests_passed = 0
+
+        result = CheckResult(tests_total=len(self.tests))
+
         for test in self.tests:
             stdin, expected = test[0], test[1]
 
@@ -102,27 +105,23 @@ class DockerTestThread(Thread):
                 output_fpath=output_file_path
             )
             execute_result = self.container.exec_run(run_command, workdir=source_path, environment={
-                'ARGS': '{} {}'.format(input_file_path, output_file_path)
+                'ARGS': '{} {}'.format(input_file_path, output_file_path),
+                'input_path': input_file_path,
+                'output_path': output_file_path
             })
 
             self.container = self.client.containers.get(self.container.id)
             if self.container.status == 'exited':
-                self.result = CheckResult(
-                    check_result=STATUS_RUNTIME_TIMEOUT,
-                    check_message='',
-                    tests_passed=tests_passed,
-                    tests_total=len(self.tests)
-                )
+                result.check_result = STATUS_CHECK_ERROR
+                result.tests_passed = tests_passed
+                self.result = result
                 return
 
             stdout = execute_result.output.decode()
             if execute_result.exit_code != 0:
-                self.result = CheckResult(
-                    check_result=STATUS_RUNTIME_ERROR,
-                    check_message=stdout,
-                    tests_passed=0,
-                    tests_total=len(self.tests)
-                )
+                result.check_result = STATUS_RUNTIME_ERROR
+                result.check_message = stdout
+                self.result = result
                 return
 
             fout = get_file_from_container(self.container, output_file_path)
@@ -134,22 +133,18 @@ class DockerTestThread(Thread):
 
             if answer != expected:
                 msg = 'For "{}" expected "{}", but got "{}"'.format(test[0], test[1], answer)
-                self.result = CheckResult(
-                    check_result=STATUS_CHECK_ERROR,
-                    check_message=msg,
-                    tests_passed=tests_passed,
-                    tests_total=len(self.tests)
-                )
+                result.check_result = STATUS_CHECK_ERROR
+                result.check_message = msg
+                result.tests_passed = tests_passed
+                self.result = result
+
                 return
 
             tests_passed += 1
 
-        self.result = CheckResult(
-            check_result=STATUS_OK,
-            check_message='',
-            tests_passed=tests_passed,
-            tests_total=len(self.tests)
-        )
+        result.check_result = STATUS_OK
+        result.tests_passed = tests_passed
+        self.result = result
 
     def terminate(self):
         self.container = self.client.containers.get(self.container.id)
