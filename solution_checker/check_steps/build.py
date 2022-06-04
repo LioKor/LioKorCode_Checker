@@ -34,7 +34,7 @@ def build_solution(client, container, build_timeout: float) -> BuildResult:
     start_time = time.time()
     build_thread.start()
     build_thread.join(build_timeout)
-    build_time = round(time.time() - start_time, 4)
+    build_time = time.time() - start_time
     result = build_thread.result
 
     if result is None:

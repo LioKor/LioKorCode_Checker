@@ -51,8 +51,8 @@ def check_solution(source_code: dict, tests: list, build_timeout: float, test_ti
 
     check_result = build_result.status if build_result.status != c.STATUS_OK else tests_result.status
     return CheckResult(
-        check_time=tests_result.time,  # todo: rename to test_time
-        build_time=build_result.time,
+        check_time=round(tests_result.time, 4),  # todo: rename to test_time
+        build_time=round(build_result.time, 4),
         check_result=check_result,  # todo: rename to status
         check_message=message,
         tests_passed=tests_result.tests_passed,

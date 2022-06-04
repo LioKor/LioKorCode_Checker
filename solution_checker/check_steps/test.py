@@ -60,7 +60,7 @@ def run_test(client, container, test: list, io_path: str, test_timeout: float) -
     start_time = time.time()
     test_thread.start()
     test_thread.join(test_timeout)
-    test_time = round(time.time() - start_time, 4)
+    test_time = time.time() - start_time
     result = test_thread.result
 
     if result is None:
