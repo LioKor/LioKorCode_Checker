@@ -1,6 +1,8 @@
 import tarfile
 from io import BytesIO
 
+from typing import Union
+
 
 def remove_container(client, container_id):
     container = client.containers.get(container_id)
@@ -26,7 +28,7 @@ def put_file_to_container(container, path: str, content: str):
     container.put_archive(path, bio.read())
 
 
-def get_file_from_container(container, fname: str) -> str:
+def get_file_from_container(container, fname: str) -> Union[str, None]:
     try:
         bits, stats = container.get_archive(fname)
         bio = BytesIO()

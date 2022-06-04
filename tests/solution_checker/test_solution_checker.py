@@ -1,5 +1,6 @@
 import unittest
 
+import solution_checker.constants as c
 import solution_checker.solution_checker as sc
 
 source_code_py_file = {
@@ -123,7 +124,7 @@ run:
 	python3 main.py
 ''',
     'main.py': '''
-a, b = map(int, input().split())
+# a, b = map(int, input().split())
 print(3)    
 '''
 }
@@ -143,7 +144,7 @@ class SolutionCheckerTest(unittest.TestCase):
     ]
 
     def check_solution_ok(self, result):
-        self.assertEqual(result.check_result, sc.STATUS_OK)
+        self.assertEqual(result.check_result, c.STATUS_OK)
         self.assertEqual(result.tests_passed, result.tests_total)
         self.assertEqual(result.tests_passed, len(self.tests))
         self.assertTrue(result.lint_success)
@@ -158,26 +159,26 @@ class SolutionCheckerTest(unittest.TestCase):
 
     def test_error_build(self):
         result = sc.check_task_multiple_files(source_code_bad_build, self.tests)
-        self.assertEqual(result.check_result, sc.STATUS_BUILD_ERROR)
+        self.assertEqual(result.check_result, c.STATUS_BUILD_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_runtime(self):
         result = sc.check_task_multiple_files(source_code_bad_runtime, self.tests)
-        self.assertEqual(result.check_result, sc.STATUS_RUNTIME_ERROR)
+        self.assertEqual(result.check_result, c.STATUS_RUNTIME_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_build_timeout(self):
         result = sc.check_task_multiple_files(source_code_build_timeout, self.tests)
-        self.assertEqual(result.check_result, sc.STATUS_BUILD_TIMEOUT)
+        self.assertEqual(result.check_result, c.STATUS_BUILD_TIMEOUT)
 
     def test_error_runtime_timeout(self):
         result = sc.check_task_multiple_files(source_code_runtime_timeout, [['1 2', '3']])
-        self.assertEqual(result.check_result, sc.STATUS_RUNTIME_TIMEOUT, msg=result.json())
+        self.assertEqual(result.check_result, c.STATUS_RUNTIME_TIMEOUT, msg=result.json())
 
     def test_error_test_error(self):
         result = sc.check_task_multiple_files(source_code_py_wrong, self.tests)
-        self.assertEqual(result.check_result, sc.STATUS_TEST_ERROR, msg=result.json())
-        self.assertEqual(result.tests_passed, 1)
+        self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
+        self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 
 

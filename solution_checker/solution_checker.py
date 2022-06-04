@@ -5,22 +5,12 @@ import config
 
 from threading import Thread
 
-from solution_checker.models import CheckResult
+from solution_checker.models import CheckResult, BuildResult, TestResult, LintResult
 from solution_checker.utils import files_to_tar
 from solution_checker.docker_utils import remove_container, get_file_from_container, put_file_to_container
+import solution_checker.constants as c
 
 from linter.linter import lint_dict, lint_errors_to_str
-
-
-STATUS_OK = 0
-STATUS_CHECKING = 1
-STATUS_BUILD_ERROR = 2
-STATUS_RUNTIME_ERROR = 3
-STATUS_TEST_ERROR = 4
-STATUS_RUNTIME_TIMEOUT = 6
-STATUS_BUILD_TIMEOUT = 7
-STATUS_LINT_ERROR = 8
-STATUS_DRAFT = 9
 
 # todo: receive check timeout from backend
 BUILD_TIMEOUT = config.DEFAULT_BUILD_TIMEOUT  # in seconds
@@ -77,12 +67,11 @@ class DockerTestThread(Thread):
 
         self.container = self.client.containers.get(self.container.id)
         if self.container.status == 'exited':
-            self.result = (STATUS_RUNTIME_TIMEOUT, '')
             return
 
         stdout = execute_result.output.decode()
         if execute_result.exit_code != 0:
-            self.result = (STATUS_RUNTIME_ERROR, stdout)
+            self.result = (c.STATUS_RUNTIME_ERROR, stdout)
             return
 
         fout = get_file_from_container(self.container, output_file_path)
@@ -94,33 +83,50 @@ class DockerTestThread(Thread):
 
         if answer != expected:
             msg = 'For "{}" expected "{}", but got "{}"'.format(self.test[0], self.test[1], answer)
-            self.result = (STATUS_TEST_ERROR, msg)
+            self.result = (c.STATUS_TEST_ERROR, msg)
             return
 
-        self.result = (STATUS_OK, '')
+        self.result = (c.STATUS_OK, '')
 
     def terminate(self):
         self.container = self.client.containers.get(self.container.id)
         self.container.kill()
 
 
-def build_solution(client, container):
+def build_solution(client, container) -> BuildResult:
     build_thread = DockerBuildThread(client, container, '/root/source')
     start_time = time.time()
     build_thread.start()
     build_thread.join(BUILD_TIMEOUT)
     build_time = round(time.time() - start_time, 4)
+    result = build_thread.result
 
-    compile_result = build_thread.result
-    if compile_result is None:
+    if result is None:
         build_thread.terminate()
         # waiting for container to stop and then thread will exit
         build_thread.join()
+        return BuildResult(
+            status=c.STATUS_BUILD_TIMEOUT,
+            time=build_time,
+            message=''
+        )
 
-    return compile_result, build_time
+    if result.exit_code != 0:
+        msg = result.output.decode()
+        return BuildResult(
+            status=c.STATUS_BUILD_ERROR,
+            time=build_time,
+            message=msg
+        )
+
+    return BuildResult(
+        status=c.STATUS_OK,
+        time=build_time,
+        message=''
+    )
 
 
-def test_solution(client, container, tests):
+def test_solution(client, container, tests) -> TestResult:
     tests_passed = 0
     tests_time = .0
     status, msg = None, None
@@ -134,63 +140,57 @@ def test_solution(client, container, tests):
         result = test_thread.result
 
         if result is None:
-            result = (STATUS_RUNTIME_TIMEOUT, '')
+            result = (c.STATUS_RUNTIME_TIMEOUT, '')
             test_thread.terminate()
             # waiting for container to stop and then thread will exit
             test_thread.join()
 
         status, msg = result
-        if status != STATUS_OK:
+        if status != c.STATUS_OK:
             break
 
         tests_passed += 1
         tests_time += test_time
 
-    result = CheckResult(
-        check_result=status,
-        check_time=tests_time,
-        check_message=msg,
+    return TestResult(
+        status=status,
+        time=tests_time,
+        message=msg,
         tests_passed=tests_passed,
         tests_total=len(tests)
-
     )
 
-    return result
+
+def lint_solution(source_code: dict) -> LintResult:
+    lint_errors = lint_dict(source_code)
+    str_lint = lint_errors_to_str(lint_errors)
+
+    lint_status = c.STATUS_OK if len(str_lint) == 0 else c.STATUS_LINT_ERROR
+    return LintResult(
+        status=lint_status,
+        message=str_lint
+    )
 
 
-def check_solution(client, container, tests, need_to_build=True):
-    build_time = .0
-    if need_to_build:
-        build_result, build_time = build_solution(client, container)
+def create_container():
+    client = docker.from_env()
+    container = client.containers.run(
+        'liokorcode_checker',
+        detach=True,
+        tty=True,
 
-        if build_result is None:
-            return CheckResult(
-                build_time=build_time,
-                check_result=STATUS_BUILD_TIMEOUT,
-                tests_total=len(tests)
-            )
-
-        if build_result.exit_code != 0:
-            msg = build_result.output.decode()
-            return CheckResult(
-                build_time=build_time,
-                check_result=STATUS_BUILD_ERROR,
-                check_message=msg,
-                tests_total=len(tests)
-            )
-
-    result = test_solution(client, container, tests)
-    result.build_time = build_time
-
-    return result
+        network_disabled=True,
+        mem_limit='128m',
+    )
+    return client, container
 
 
 def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     makefile = source_code.get('Makefile', None)
     if makefile is None:
-        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='No Makefile found!')
+        return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='No Makefile found!')
     if makefile.find('run:') == -1:
-        return CheckResult(check_result=STATUS_BUILD_ERROR, check_message='Makefile must at least contain "run:"')
+        return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='Makefile must at least contain "run:"')
 
     need_to_build = makefile.find('build:') != -1
 
@@ -199,15 +199,7 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
     except Exception:
         raise Exception('Unable to parse source code!')
 
-    client = docker.from_env()
-
-    container = client.containers.run(
-        'liokorcode_checker',
-        detach=True,
-        tty=True,
-        network_disabled=True,
-        mem_limit='128m',
-    )
+    client, container = create_container()
 
     try:
         container.put_archive('/root', tar_source.read())
@@ -215,16 +207,32 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
         remove_container(client, container.id)
         raise Exception('Unable to create requested filesystem!')
 
-    result = check_solution(client, container, tests, need_to_build)
+    message = ''
 
-    if result.check_result == STATUS_OK:
-        lint_errors = lint_dict(source_code)
-        str_lint = lint_errors_to_str(lint_errors)
+    build_result = BuildResult(status=c.STATUS_OK)
+    if need_to_build:
+        build_result = build_solution(client, container)
+        message += build_result.message + '\n'
 
-        result.lint_success = len(str_lint) == 0
-        if not result.lint_success:
-            result.check_message += '\n{}'.format(str_lint)
+    test_result = TestResult()
+    if build_result.status == c.STATUS_OK:
+        test_result = test_solution(client, container, tests)
+        message += test_result.message + '\n'
+
+    lint_result = LintResult(status=c.STATUS_LINT_ERROR)
+    if build_result.status == c.STATUS_OK and test_result.status == c.STATUS_OK:
+        lint_result = lint_solution(source_code)
+        message += lint_result.message + '\n'
 
     remove_container(client, container.id)
 
-    return result
+    check_result = build_result.status if build_result.status != c.STATUS_OK else test_result.status
+    return CheckResult(
+        check_time=test_result.time,  # todo: rename to test_time
+        build_time=build_result.time,
+        check_result=check_result,  # todo: rename to status
+        check_message=message,
+        tests_passed=test_result.tests_passed,
+        tests_total=test_result.tests_total,
+        lint_success=lint_result.status == c.STATUS_OK
+    )

@@ -1,5 +1,7 @@
 import json
 
+import solution_checker.constants as c
+
 
 class CheckResult:
     def __init__(self,
@@ -26,3 +28,25 @@ class CheckResult:
             new_key = key_split[0] + ''.join(word.capitalize() for word in key_split[1:])
             json_data[new_key] = value
         return json.dumps(json_data)
+
+
+class BuildResult:
+    def __init__(self, status: int = c.STATUS_OK, time: float = .0, message: str = ''):
+        self.status = status
+        self.time = time
+        self.message = message
+
+
+class TestResult:
+    def __init__(self, status: int = c.STATUS_OK, time: float = .0, message: str = '', tests_passed: int = 0, tests_total: int = 0):
+        self.status = status
+        self.time = time
+        self.message = message
+        self.tests_passed = tests_passed
+        self.tests_total = tests_total
+
+
+class LintResult:
+    def __init__(self, status: int = c.STATUS_OK, message: str = ''):
+        self.status = status
+        self.message = message
