@@ -17,7 +17,7 @@ def lint_errors_to_str(lint_errors: dict):
     for file, errors in lint_errors.items():
         str_lint += '--- ' + file + ':\n'
         for error in errors:
-            str_lint += '* Line {}: {}'.format(error['line'], error['error'])
+            str_lint += '* Line {}: {}\n'.format(error['line'], error['error'])
         str_lint += '\n'
     return str_lint
 
