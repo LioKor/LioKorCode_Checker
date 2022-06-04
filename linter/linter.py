@@ -19,7 +19,8 @@ def lint_errors_to_str(lint_errors: dict):
         for error in errors:
             str_lint += '* Line {}: {}\n'.format(error['line'], error['error'])
         str_lint += '\n'
-    return str_lint
+    # removing the last \n that is not needed
+    return str_lint[0:-1]
 
 
 def lint_code(code: str):

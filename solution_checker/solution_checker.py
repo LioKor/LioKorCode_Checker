@@ -45,7 +45,7 @@ def check_solution(source_code: dict, tests: list, build_timeout: float, test_ti
     lint_result = LintResult(status=c.STATUS_LINT_ERROR)
     if build_result.status == c.STATUS_OK and tests_result.status == c.STATUS_OK:
         lint_result = lint_solution(source_code)
-        message += lint_result.message + '\n' if len(lint_result.message) > 0 else ''
+        message += lint_result.message if len(lint_result.message) > 0 else ''
 
     remove_container(client, container.id)
 
