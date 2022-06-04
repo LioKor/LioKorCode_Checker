@@ -1,7 +1,7 @@
 API_KEY = 'secret_key_here'
 
-# default timeouts in seconds
-DEFAULT_BUILD_TIMEOUT = 2
+# default timeouts in seconds (java requires a lot of time)
+DEFAULT_BUILD_TIMEOUT = 4
 DEFAULT_TEST_TIMEOUT = 1
 
 # maximum allowed timeouts in seconds

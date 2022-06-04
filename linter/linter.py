@@ -1,7 +1,12 @@
-def lint_dict(source_code: dict):
+def lint_dict(source_code: dict, extensions: list):
     lint_errors = {}
     for name, content in source_code.items():
-        if name.endswith('.c') or name.endswith('.cpp') or name.endswith('.go'):
+        need_lint = False
+        for extension in extensions:
+            if name.endswith(extension):
+                need_lint = True
+                break
+        if need_lint:
             try:
                 lint_result = lint_code(content)
             except Exception as e:
