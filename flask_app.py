@@ -2,7 +2,7 @@ from flask import Flask, request, Response
 import json
 
 import config
-from solution_checker.solution_checker import check_task_multiple_files
+from solution_checker.solution_checker import check_solution
 
 app = Flask(__name__)
 
@@ -23,14 +23,13 @@ def check_solution_view():
         response = json.dumps({'error': 'You need to provide correct api_key as GET param to access this API'})
         return ResponseJSON(response, status=401)
 
-    task = request.json
+    check_request = request.json
 
-    if type(task) != dict:
+    if type(check_request) != dict:
         response = json.dumps({'error': 'We accept only dict as a root element.'})
         return ResponseJSON(response, status=400)
 
-    source_code, tests = task.get('sourceCode', None), task.get('tests', None)
-
+    source_code, tests = check_request.get('sourceCode', None), check_request.get('tests', None)
     if source_code is None or tests is None:
         response = json.dumps({'error': 'Required "sourceCode" or "tests" fields are missing!'})
         return ResponseJSON(response, status=400)
@@ -39,8 +38,18 @@ def check_solution_view():
         response = json.dumps({'error': '"sourceCode" must be dict and "tests" must be list'})
         return ResponseJSON(response, status=400)
 
+    build_timeout = check_request.get('buildTimeout', config.DEFAULT_BUILD_TIMEOUT)
+    if build_timeout > config.MAX_BUILD_TIMEOUT:
+        response = json.dumps({'error': 'buildTimeout is too big, maximum allowed is {}'.format(config.MAX_BUILD_TIMEOUT)})
+        return ResponseJSON(response, status=401)
+
+    test_timeout = check_request.get('testTimeout', config.DEFAULT_TEST_TIMEOUT)
+    if test_timeout * len(tests) > config.MAX_TESTING_TIMEOUT:
+        response = json.dumps({'error': 'testTimeout is too big, maximum allowed timeout for ALL tests is {}'.format(config.MAX_TESTING_TIMEOUT)})
+        return ResponseJSON(response, status=401)
+
     try:
-        check_result = check_task_multiple_files(task['sourceCode'], task['tests'])
+        check_result = check_solution(check_request['sourceCode'], check_request['tests'], build_timeout, test_timeout)
         return ResponseJSON(check_result.json())
     except Exception as e:
         response = json.dumps({'error': str(e)})

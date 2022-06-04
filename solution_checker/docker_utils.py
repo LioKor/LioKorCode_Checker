@@ -1,7 +1,22 @@
+import docker
+
 import tarfile
 from io import BytesIO
 
 from typing import Union
+
+
+def create_container():
+    client = docker.from_env()
+    container = client.containers.run(
+        'liokorcode_checker',
+        detach=True,
+        tty=True,
+
+        network_disabled=True,
+        mem_limit='128m',
+    )
+    return client, container
 
 
 def remove_container(client, container_id):

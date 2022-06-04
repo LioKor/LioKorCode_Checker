@@ -38,6 +38,13 @@ class BuildResult:
 
 
 class TestResult:
+    def __init__(self, status: int = c.STATUS_OK, time: float = .0, message: str = ''):
+        self.status = status
+        self.time = time
+        self.message = message
+
+
+class TestsResult:
     def __init__(self, status: int = c.STATUS_OK, time: float = .0, message: str = '', tests_passed: int = 0, tests_total: int = 0):
         self.status = status
         self.time = time

@@ -1,20 +1,15 @@
-import docker
 import time
 
 import config
 
 from threading import Thread
 
-from solution_checker.models import CheckResult, BuildResult, TestResult, LintResult
+from solution_checker.models import CheckResult, BuildResult, TestResult, TestsResult, LintResult
 from solution_checker.utils import files_to_tar
-from solution_checker.docker_utils import remove_container, get_file_from_container, put_file_to_container
+from solution_checker.docker_utils import create_container, remove_container, get_file_from_container, put_file_to_container
 import solution_checker.constants as c
 
 from linter.linter import lint_dict, lint_errors_to_str
-
-# todo: receive check timeout from backend
-BUILD_TIMEOUT = config.DEFAULT_BUILD_TIMEOUT  # in seconds
-RUNTIME_TIMEOUT = config.DEFAULT_TEST_TIMEOUT  # in seconds
 
 
 class DockerBuildThread(Thread):
@@ -27,9 +22,13 @@ class DockerBuildThread(Thread):
         self.source_path = source_path
 
     def run(self):
-        build_command = 'make build'
-        build_result = self.container.exec_run(build_command, workdir=self.source_path)
-        self.result = build_result
+        # when timeout is too short exec_run could raise error
+        try:
+            build_command = 'make build'
+            build_result = self.container.exec_run(build_command, workdir=self.source_path)
+            self.result = build_result
+        except Exception:
+            pass
 
     def terminate(self):
         self.container.kill()
@@ -38,66 +37,51 @@ class DockerBuildThread(Thread):
 class DockerTestThread(Thread):
     result = None
 
-    def __init__(self, client, container, source_path, test):
+    def __init__(self, client, container, source_path, input_path, output_path):
         super().__init__()
         self.client = client
         self.container = container
         self.source_path = source_path
-        self.test = test
+        self.input_path = input_path
+        self.output_path = output_path
 
     def run(self):
-        io_directory_path = '/root/io'
-        input_file_path = io_directory_path + '/input.txt'
-        output_file_path = io_directory_path + '/output.txt'
-        self.container.exec_run('mkdir -p {}'.format(io_directory_path))
+        # when timeout is too short exec_run could raise error
+        try:
+            run_command = '/bin/bash -c "rm -f {output_fpath} && cat {input_fpath} | make -s ARGS=\'{input_fpath} {output_fpath}\' run"'.format(
+                input_fpath=self.input_path,
+                output_fpath=self.output_path
+            )
+            execute_result = self.container.exec_run(
+                run_command,
+                workdir=self.source_path,
+                environment={
+                    'ARGS': '{} {}'.format(self.input_path, self.output_path),
+                    'input_path': self.input_path,
+                    'output_path': self.output_path
+                }
+            )
 
-        stdin, expected = self.test[0], self.test[1]
-
-        put_file_to_container(self.container, input_file_path, stdin)
-
-        run_command = '/bin/bash -c "rm -f {output_fpath} && cat {input_fpath} | make -s ARGS=\'{input_fpath} {output_fpath}\' run"'.format(
-            input_fpath=input_file_path,
-            output_fpath=output_file_path
-        )
-        execute_result = self.container.exec_run(run_command, workdir=self.source_path, environment={
-            'ARGS': '{} {}'.format(input_file_path, output_file_path),
-            'input_path': input_file_path,
-            'output_path': output_file_path
-        })
-
-        self.container = self.client.containers.get(self.container.id)
-        if self.container.status == 'exited':
+            self.container = self.client.containers.get(self.container.id)
+            if self.container.status == 'exited':
+                return
+        except Exception:
             return
 
-        stdout = execute_result.output.decode()
-        if execute_result.exit_code != 0:
-            self.result = (c.STATUS_RUNTIME_ERROR, stdout)
-            return
-
-        fout = get_file_from_container(self.container, output_file_path)
-        answer = fout if fout is not None else stdout
-
-        # it's a practice to add \n at the end of output, but usually tests don't have it
-        if len(answer) > 0 and answer[-1] == '\n' and expected[-1] != '\n':
-            answer = answer[0:-1]
-
-        if answer != expected:
-            msg = 'For "{}" expected "{}", but got "{}"'.format(self.test[0], self.test[1], answer)
-            self.result = (c.STATUS_TEST_ERROR, msg)
-            return
-
-        self.result = (c.STATUS_OK, '')
+        exit_code, stdout = execute_result.exit_code, execute_result.output.decode()
+        self.result = (exit_code, stdout)
 
     def terminate(self):
         self.container = self.client.containers.get(self.container.id)
-        self.container.kill()
+        if self.container.status == 'running':
+            self.container.kill()
 
 
-def build_solution(client, container) -> BuildResult:
+def build_solution(client, container, build_timeout: float = config.DEFAULT_BUILD_TIMEOUT) -> BuildResult:
     build_thread = DockerBuildThread(client, container, '/root/source')
     start_time = time.time()
     build_thread.start()
-    build_thread.join(BUILD_TIMEOUT)
+    build_thread.join(build_timeout)
     build_time = round(time.time() - start_time, 4)
     result = build_thread.result
 
@@ -126,39 +110,76 @@ def build_solution(client, container) -> BuildResult:
     )
 
 
-def test_solution(client, container, tests) -> TestResult:
-    tests_passed = 0
-    tests_time = .0
-    status, msg = None, None
+def run_test(client, container, test, io_path, test_timeout) -> TestResult:
+    input_file_path = io_path + '/input.txt'
+    output_file_path = io_path + '/output.txt'
 
-    for test in tests:
-        test_thread = DockerTestThread(client, container, '/root/source', test)
-        start_time = time.time()
-        test_thread.start()
-        test_thread.join(RUNTIME_TIMEOUT)
-        test_time = round(time.time() - start_time, 4)
-        result = test_thread.result
+    test_input, expected_output = test
+    put_file_to_container(container, input_file_path, test_input)
 
-        if result is None:
-            result = (c.STATUS_RUNTIME_TIMEOUT, '')
-            test_thread.terminate()
-            # waiting for container to stop and then thread will exit
-            test_thread.join()
+    test_thread = DockerTestThread(client, container, '/root/source', input_file_path, output_file_path)
+    start_time = time.time()
+    test_thread.start()
+    test_thread.join(test_timeout)
+    test_time = round(time.time() - start_time, 4)
+    result = test_thread.result
 
-        status, msg = result
-        if status != c.STATUS_OK:
-            break
+    if result is None:
+        test_thread.terminate()
+        # waiting for container to stop and then thread will exit
+        test_thread.join()
+        return TestResult(
+            status=c.STATUS_RUNTIME_TIMEOUT,
+            time=test_time
+        )
 
-        tests_passed += 1
-        tests_time += test_time
+    exit_code, stdout = result
+    if exit_code != 0:
+        return TestResult(
+            status=c.STATUS_RUNTIME_ERROR,
+            time=test_time,
+            message=stdout
+        )
+
+    fout = get_file_from_container(container, output_file_path)
+    answer = fout if fout is not None else stdout
+
+    # it's a practice to add \n at the end of output, but usually tests don't have it
+    if len(answer) > 0 and answer[-1] == '\n' and expected_output[-1] != '\n':
+        answer = answer[0:-1]
+
+    if answer != expected_output:
+        msg = 'For "{}" expected "{}", but got "{}"'.format(test_input, expected_output, answer)
+        return TestResult(
+            status=c.STATUS_TEST_ERROR,
+            time=test_time,
+            message=msg
+        )
 
     return TestResult(
-        status=status,
-        time=tests_time,
-        message=msg,
-        tests_passed=tests_passed,
-        tests_total=len(tests)
+        status=c.STATUS_OK,
+        time=test_time
     )
+
+
+def test_solution(client, container, tests: list, test_timeout: float) -> TestsResult:
+    io_directory_path = '/root/io'
+    container.exec_run('mkdir -p {}'.format(io_directory_path))
+
+    tests_result = TestsResult(tests_total=len(tests))
+
+    for test in tests:
+        test_result = run_test(client, container, test, io_directory_path, test_timeout)
+
+        tests_result.time += test_result.time
+        if test_result.status != c.STATUS_OK:
+            tests_result.status = test_result.status
+            tests_result.message = test_result.message
+            break
+
+        tests_result.tests_passed += 1
+
+    return tests_result
 
 
 def lint_solution(source_code: dict) -> LintResult:
@@ -172,20 +193,7 @@ def lint_solution(source_code: dict) -> LintResult:
     )
 
 
-def create_container():
-    client = docker.from_env()
-    container = client.containers.run(
-        'liokorcode_checker',
-        detach=True,
-        tty=True,
-
-        network_disabled=True,
-        mem_limit='128m',
-    )
-    return client, container
-
-
-def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
+def check_solution(source_code: dict, tests: list, build_timeout: float, test_timeout: float) -> CheckResult:
     makefile = source_code.get('Makefile', None)
     if makefile is None:
         return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='No Makefile found!')
@@ -211,28 +219,28 @@ def check_task_multiple_files(source_code: dict, tests: list) -> CheckResult:
 
     build_result = BuildResult(status=c.STATUS_OK)
     if need_to_build:
-        build_result = build_solution(client, container)
-        message += build_result.message + '\n'
+        build_result = build_solution(client, container, build_timeout)
+        message += build_result.message + '\n' if len(build_result.message) > 0 else ''
 
-    test_result = TestResult()
+    tests_result = TestsResult()
     if build_result.status == c.STATUS_OK:
-        test_result = test_solution(client, container, tests)
-        message += test_result.message + '\n'
+        tests_result = test_solution(client, container, tests, test_timeout)
+        message += tests_result.message + '\n' if len(tests_result.message) > 0 else ''
 
     lint_result = LintResult(status=c.STATUS_LINT_ERROR)
-    if build_result.status == c.STATUS_OK and test_result.status == c.STATUS_OK:
+    if build_result.status == c.STATUS_OK and tests_result.status == c.STATUS_OK:
         lint_result = lint_solution(source_code)
-        message += lint_result.message + '\n'
+        message += lint_result.message + '\n' if len(lint_result.message) > 0 else ''
 
     remove_container(client, container.id)
 
-    check_result = build_result.status if build_result.status != c.STATUS_OK else test_result.status
+    check_result = build_result.status if build_result.status != c.STATUS_OK else tests_result.status
     return CheckResult(
-        check_time=test_result.time,  # todo: rename to test_time
+        check_time=tests_result.time,  # todo: rename to test_time
         build_time=build_result.time,
         check_result=check_result,  # todo: rename to status
         check_message=message,
-        tests_passed=test_result.tests_passed,
-        tests_total=test_result.tests_total,
+        tests_passed=tests_result.tests_passed,
+        tests_total=tests_result.tests_total,
         lint_success=lint_result.status == c.STATUS_OK
     )
