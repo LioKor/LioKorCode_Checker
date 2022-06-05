@@ -86,11 +86,8 @@ def lint_code(code: str):
                     checking_indentation = False
                 indent_symbol = c
                 current_indent += 1
-            elif not is_string and not is_comment and c == ',':
-                before_space = i > 0 and line[i - 1] == ' '
-                no_space = i < len_line - 1 and line[i + 1] != ' '
-                extra_space = i < len_line - 2 and line[i + 2] == ' '
-                if before_space or no_space or extra_space:
+            elif not is_string and not is_comment and prev_c == ',':
+                if c != ' ' or next_c == ' ':
                     errors.append({
                         'line': line_number,
                         'error': 'spaces/punctuation'
