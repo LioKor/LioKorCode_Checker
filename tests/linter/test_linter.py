@@ -26,8 +26,8 @@ class LinterTest(unittest.TestCase):
             ]],
             ['test_cases/c_comments.c', []],
             ['test_cases/c_one_liners.c', [
-                {'line': 1, 'error': 'indentation/bad'},
-                {'line': 1, 'error': 'line/noendnewline'},
+                {'line': 2, 'error': 'indentation/bad'},
+                {'line': 2, 'error': 'line/noendnewline'},
             ]],
             ['test_cases/c_very_bad_file.c', [
                 {'line': 4, 'error': 'spaces/punctuation'},
