@@ -84,7 +84,9 @@ def run_test(client, container, test: list, io_path: str, test_timeout: float) -
     answer = fout if fout is not None else stdout
 
     # it's a practice to add \n at the end of output, but usually tests don't have it
-    if len(answer) > 0 and answer[-1] == '\n' and expected_output[-1] != '\n':
+    answer_has_end_newline = len(answer) > 0 and answer[-1] == '\n'
+    expected_has_not_end_newline = len(expected_output) > 0 and expected_output[-1] != '\n'
+    if answer_has_end_newline and expected_has_not_end_newline:
         answer = answer[0:-1]
 
     if answer != expected_output:

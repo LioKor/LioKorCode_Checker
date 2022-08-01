@@ -101,6 +101,25 @@ int main() {
 ''',
 }
 
+# there was an error when task marked solved with no tests passed
+source_code_internal_error = {
+    'Makefile': '''
+build:
+	gcc main.c
+run:
+	./a.out
+''',
+    'main.c': '''
+#include <stdio.h>
+
+int main() {
+    printf("3\\n-1\\n");
+
+    return 0;
+}
+'''
+}
+
 source_code_build_timeout = {
     'Makefile': '''
 build:
@@ -191,6 +210,16 @@ class SolutionCheckerTest(unittest.TestCase):
 
     def test_error_test_error(self):
         result = sc.check_solution(source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout)
+        self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
+        self.assertEqual(result.tests_passed, 1, msg=result.json())
+        self.assertNotEqual(len(result.check_message), 0)
+
+    def test_error_solved_but_not(self):
+        tests = [
+            ['1 2', '3\n-1'],
+            ['0 0', '']
+        ]
+        result = sc.check_solution(source_code_internal_error, tests, self.build_timeout, self.test_timeout)
         self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
