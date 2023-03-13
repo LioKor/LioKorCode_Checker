@@ -39,10 +39,3 @@ Written in python3. Uses dockerpy to control Docker containers and Flask to rece
 2. `nano /etc/nginx/sites-available/liokor_code_checker_balancer`
 3. `ln -s /etc/nginx/sites-available/liokor_code_checker_balancer /etc/nginx/sites-enabled/liokor_code_checker_balancer`
 4. `service nginx restart`
-
-## Docker commands
-* docker ps
-* docker ps -a
-* docker rm $(docker ps --filter status=exited -q)
-* docker kill UID
-* docker stop UID

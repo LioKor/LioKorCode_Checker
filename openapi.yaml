@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  description: "LioKorCode Checker - micro service for checking solutions to programming tasks"
+  version: "0.1.0"
+  title: "LioKorCode Checker"
+  contact:
+    email: "support@liokor.com"
+  license:
+    name: "MIT"
+paths:
+  /check-solution:
+    post:
+      tags:
+      - "solutions"
+      summary: "Checks solution using provided tests"
+      operationId: "createUser"
+      parameters:
+        - in: query
+          name: api_key
+          required: true
+          schema:
+            type: string
+            example: "wolf_key"
+      requestBody:
+        description: "Request body must contain solution files and tests. Solution files must contain Makefile which must contain at least 'run' task."
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SolutionCheckRequest"
+      responses:
+        "200":
+          description: "Solution was successfully checked"
+          content: 
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SolutionCheckResponse"
+        "400":
+          description: "Incorrect request body"
+        "401":
+          description: "Either incorrect api_key or timeout passed in request exceeds maximum allowed"
+components:
+  schemas:
+    SolutionCheckRequest:
+      type: object
+      required:
+        - sourceCode
+        - tests
+      properties:
+        sourceCode:
+          type: object
+          example: {
+            "Makefile": "solution: main.c sum.o\n\tgcc main.c sum.o -o solution\nrun: solution\n\t./solution\nsum.o: lib/sum.h lib/sum.c\n\tgcc -c lib/sum.c",
+            "main.c": "#include \"stdio.h\"\n#include \"lib/sum.h\"\nint main() {\nint a, b;\nscanf(\"%d %d\", &a, &b);\nprintf(\"%d\", sum(a, b));\nreturn 0;\n}\n",
+            "lib/sum.c": "#include \"sum.h\"\nint sum(int a, int b) {\nreturn a + b;\n}\n",
+            "lib/sum.h": "#ifndef LIB_SUM_H_\n#define LIB_SUM_H_\nint sum(int, int);\n#endif  // LIB_SUM_H_\n"
+          }
+        tests:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          example: [
+            ["1 2", "3"],
+            ["-2 5", "3"],
+            ["10 15", "25"],
+            ["0 0", "0"]
+          ]
+        buildTimeout:
+          type: number
+          example: 2.0
+        testTimeout:
+          type: number
+          example: 6.0
+    SolutionCheckResponse:
+      type: object
+      properties:
+        checkTime: 
+          type: number
+          example: 0.3019
+        buildTime: 
+          type: number
+          example: 0.0
+        checkResult:
+          type: integer
+          description: "0 - STATUS_OK, 1 - STATUS_CHECKING, 2 - STATUS_BUILD_ERROR, 3 - STATUS_RUNTIME_ERROR, 4 - STATUS_TEST_ERROR, 6 - STATUS_RUNTIME_TIMEOUT, 7 - STATUS_BUILD_TIMEOUT, 8 - STATUS_LINT_ERROR"
+          enum: [0, 1, 2, 3, 4, 6, 7, 8]
+          example: 0
+        checkMessage:
+          type: string
+          example: "--- main.c:\n* Line 4: indentation/bad\n* Line 5: indentation/bad\n* Line 6: indentation/bad\n* Line 7: indentation/bad\n\n--- lib/sum.c:\n* Line 3: indentation/bad\n"
+        testsPassed:
+          type: integer
+          example: 3
+        testsTotal:
+          type: integer
+          example: 3
+        lintSuccess:
+          type: boolean
+          example: false
