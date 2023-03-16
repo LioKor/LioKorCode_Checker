@@ -8,7 +8,7 @@ info:
   license:
     name: "MIT"
 paths:
-  /check-solution:
+  /check_solution:
     post:
       tags:
       - "solutions"

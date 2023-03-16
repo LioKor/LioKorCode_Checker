@@ -9,7 +9,7 @@ Written in python3. Uses dockerpy to control Docker containers and Flask to rece
 1. `apt update && apt install apt-transport-https ca-certificates curl software-properties-common`
 2. `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -`
 3. `add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"`
-4. `apt update && apt install docker-ce nginx python3-pip`
+4. `apt update && apt install build-essential docker-ce nginx python3-pip python3-dev`
 5. `pip3 install uwsgi`
 
 ### Create and setup "liokor" user:
