@@ -1,6 +1,6 @@
 import json
 
-import solution_checker.constants as c
+import src.solution_checker.constants as c
 
 
 class CheckResult:
@@ -45,7 +45,14 @@ class TestResult:
 
 
 class TestsResult:
-    def __init__(self, status: int = c.STATUS_OK, time: float = .0, message: str = '', tests_passed: int = 0, tests_total: int = 0):
+    def __init__(
+            self,
+            status: int = c.STATUS_OK,
+            time: float = .0,
+            message: str = '',
+            tests_passed: int = 0,
+            tests_total: int = 0
+    ):
         self.status = status
         self.time = time
         self.message = message

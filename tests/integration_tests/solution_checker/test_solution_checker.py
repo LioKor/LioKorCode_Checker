@@ -1,7 +1,8 @@
 import unittest
 
-import solution_checker.constants as c
-import solution_checker.solution_checker as sc
+import src.solution_checker.constants as c
+from src.solution_checker.models import CheckResult
+from src.solution_checker import solution_checker as sc
 
 source_code_py_file = {
     'Makefile': '''
@@ -144,7 +145,7 @@ run:
 ''',
     'main.py': '''
 # a, b = map(int, input().split())
-print(3)    
+print(3)
 '''
 }
 
@@ -165,7 +166,7 @@ class SolutionCheckerTest(unittest.TestCase):
         ['-2 2', '0']
     ]
 
-    def check_solution_ok(self, result):
+    def check_solution_ok(self, result: CheckResult) -> None:
         self.assertEqual(result.check_result, c.STATUS_OK)
         self.assertEqual(result.tests_passed, result.tests_total)
         self.assertEqual(result.tests_passed, len(self.tests))
@@ -174,26 +175,26 @@ class SolutionCheckerTest(unittest.TestCase):
         self.assertGreater(result.check_time, 0.01)
         self.assertTrue(result.lint_success)
 
-    def test_c_multiple_files(self):
+    def test_c_multiple_files(self) -> None:
         result = sc.check_solution(source_code_c_multiple_files, self.tests, self.build_timeout, self.test_timeout)
         self.check_solution_ok(result)
         self.assertGreater(result.build_time, 0.01)
 
-    def test_py_file_io(self):
+    def test_py_file_io(self) -> None:
         result = sc.check_solution(source_code_py_file, self.tests, self.build_timeout, self.test_timeout)
         self.check_solution_ok(result)
 
-    def test_error_build(self):
+    def test_error_build(self) -> None:
         result = sc.check_solution(source_code_bad_build, self.tests, self.build_timeout, self.test_timeout)
         self.assertEqual(result.check_result, c.STATUS_BUILD_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
-    def test_error_runtime(self):
+    def test_error_runtime(self) -> None:
         result = sc.check_solution(source_code_bad_runtime, self.tests, self.build_timeout, self.test_timeout)
         self.assertEqual(result.check_result, c.STATUS_RUNTIME_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
-    def test_error_build_timeout(self):
+    def test_error_build_timeout(self) -> None:
         build_timeout = 0.1
         result = sc.check_solution(source_code_build_timeout, self.tests, build_timeout, self.test_timeout)
         self.assertEqual(result.check_result, c.STATUS_BUILD_TIMEOUT)
@@ -201,20 +202,20 @@ class SolutionCheckerTest(unittest.TestCase):
         self.assertLess(time_diff, build_timeout / 4)
         self.assertEqual(len(result.check_message), 0)
 
-    def test_error_runtime_timeout(self):
+    def test_error_runtime_timeout(self) -> None:
         test_timeout = 0.1
         result = sc.check_solution(source_code_runtime_timeout, [['1 2', '3']], self.build_timeout, test_timeout)
         self.assertEqual(result.check_result, c.STATUS_RUNTIME_TIMEOUT, msg=result.json())
         time_diff = abs(result.check_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
 
-    def test_error_test_error(self):
+    def test_error_test_error(self) -> None:
         result = sc.check_solution(source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout)
         self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 
-    def test_error_solved_but_not(self):
+    def test_error_solved_but_not(self) -> None:
         tests = [
             ['1 2', '3\n-1'],
             ['0 0', '']

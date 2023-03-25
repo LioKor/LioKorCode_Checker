@@ -1,8 +1,9 @@
-from flask import Flask, request, Response
 import json
 
+from flask import Flask, request, Response
 import config
-from solution_checker.solution_checker import check_solution
+
+from src.solution_checker.solution_checker import check_solution
 
 app = Flask(__name__)
 
@@ -12,12 +13,12 @@ class ResponseJSON(Response):
 
 
 @app.errorhandler(400)
-def handle_bad_request(e):
+def handle_bad_request() -> tuple[str, int]:
     return json.dumps({'error': 'We accept only correct JSON.'}), 400
 
 
 @app.route('/check_solution', methods=['POST'])
-def check_solution_view():
+def check_solution_view() -> Response:
     api_key = request.args.get('api_key', None)
     if api_key != config.API_KEY:
         response = json.dumps({'error': 'You need to provide correct api_key as GET param to access this API'})
@@ -40,12 +41,16 @@ def check_solution_view():
 
     build_timeout = check_request.get('buildTimeout', config.DEFAULT_BUILD_TIMEOUT)
     if build_timeout > config.MAX_BUILD_TIMEOUT:
-        response = json.dumps({'error': 'buildTimeout is too big, maximum allowed is {}'.format(config.MAX_BUILD_TIMEOUT)})
+        response = json.dumps(
+            {'error': 'buildTimeout is too big, maximum allowed is {}'.format(config.MAX_BUILD_TIMEOUT)}
+        )
         return ResponseJSON(response, status=401)
 
     test_timeout = check_request.get('testTimeout', config.DEFAULT_TEST_TIMEOUT)
     if test_timeout * len(tests) > config.MAX_TESTING_TIMEOUT:
-        response = json.dumps({'error': 'testTimeout is too big, maximum allowed timeout for ALL tests is {}'.format(config.MAX_TESTING_TIMEOUT)})
+        response = json.dumps(
+            {'error': f'testTimeout is too big, maximum allowed timeout for ALL tests is {config.MAX_TESTING_TIMEOUT}'}
+        )
         return ResponseJSON(response, status=401)
 
     try:
