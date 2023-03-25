@@ -1,22 +1,23 @@
 from threading import Thread
 import time
 
-from solution_checker.models import BuildResult
-import solution_checker.constants as c
+from docker.client import DockerClient
+from docker.models.containers import Container
 
-import config
+from src.solution_checker.models import BuildResult
+import src.solution_checker.constants as c
 
 
 class DockerBuildThread(Thread):
     result = None
 
-    def __init__(self, client, container, source_path: str):
+    def __init__(self, client: DockerClient, container: Container, source_path: str):
         super().__init__()
         self.client = client
         self.container = container
         self.source_path = source_path
 
-    def run(self):
+    def run(self) -> None:
         # when timeout is too short exec_run could raise error
         try:
             build_command = 'make build'
@@ -25,11 +26,11 @@ class DockerBuildThread(Thread):
         except Exception:
             pass
 
-    def terminate(self):
+    def terminate(self) -> None:
         self.container.kill()
 
 
-def build_solution(client, container, build_timeout: float) -> BuildResult:
+def build_solution(client: DockerClient, container: Container, build_timeout: float) -> BuildResult:
     build_thread = DockerBuildThread(client, container, '/root/source')
     start_time = time.time()
     build_thread.start()

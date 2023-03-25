@@ -1,10 +1,9 @@
-from linter.linter import lint_dict, lint_errors_to_str
+from src.linter.linter import lint_dict, lint_errors_to_str
+from src.solution_checker.models import LintResult
+import src.solution_checker.constants as c
 
-from solution_checker.models import LintResult
-import solution_checker.constants as c
 
-
-def lint_solution(source_code: dict) -> LintResult:
+def lint_solution(source_code: dict[str, str]) -> LintResult:
     lint_errors = lint_dict(source_code, ['.c', '.h', '.cpp', '.hpp', '.go', '.js', '.cs', '.java'])
     str_lint = lint_errors_to_str(lint_errors)
 

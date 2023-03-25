@@ -1,14 +1,18 @@
-from solution_checker.check_steps.build import build_solution
-from solution_checker.check_steps.test import test_solution
-from solution_checker.check_steps.lint import lint_solution
+from src.solution_checker.check_steps.build import build_solution
+from src.solution_checker.check_steps.test import test_solution
+from src.solution_checker.check_steps.lint import lint_solution
+from src.solution_checker.models import CheckResult, BuildResult, TestsResult, LintResult
+from src.solution_checker.utils import files_to_tar
+from src.solution_checker.docker_utils import create_container, remove_container
+import src.solution_checker.constants as c
 
-from solution_checker.models import CheckResult, BuildResult, TestsResult, LintResult
-from solution_checker.utils import files_to_tar
-from solution_checker.docker_utils import create_container, remove_container
-import solution_checker.constants as c
 
-
-def check_solution(source_code: dict, tests: list, build_timeout: float, test_timeout: float) -> CheckResult:
+def check_solution(
+        source_code: dict[str, str],
+        tests: list[list[str]],
+        build_timeout: float,
+        test_timeout: float
+) -> CheckResult:
     makefile = source_code.get('Makefile', None)
     if makefile is None:
         return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='No Makefile found!')

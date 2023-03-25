@@ -1,15 +1,18 @@
 from threading import Thread
 import time
 
-from solution_checker.models import TestsResult, TestResult
-from solution_checker.docker_utils import put_file_to_container, get_file_from_container
-import solution_checker.constants as c
+from docker.client import DockerClient
+from docker.models.containers import Container
+
+from src.solution_checker.models import TestsResult, TestResult
+from src.solution_checker.docker_utils import put_file_to_container, get_file_from_container
+import src.solution_checker.constants as c
 
 
 class DockerTestThread(Thread):
     result = None
 
-    def __init__(self, client, container, source_path: str, input_path: str, output_path: str):
+    def __init__(self, client: DockerClient, container: Container, source_path: str, input_path: str, output_path: str):
         super().__init__()
         self.client = client
         self.container = container
@@ -17,13 +20,11 @@ class DockerTestThread(Thread):
         self.input_path = input_path
         self.output_path = output_path
 
-    def run(self):
+    def run(self) -> None:
         # when timeout is too short exec_run could raise error
         try:
-            run_command = '/bin/bash -c "rm -f {output_fpath} && cat {input_fpath} | make -s ARGS=\'{input_fpath} {output_fpath}\' run"'.format(
-                input_fpath=self.input_path,
-                output_fpath=self.output_path
-            )
+            run_command = f'/bin/bash -c "rm -f {self.output_path} && cat {self.input_path} | ' \
+                          f'make -s ARGS=\'{self.input_path} {self.output_path}\' run"'
             execute_result = self.container.exec_run(
                 run_command,
                 workdir=self.source_path,
@@ -43,13 +44,19 @@ class DockerTestThread(Thread):
         exit_code, stdout = execute_result.exit_code, execute_result.output.decode()
         self.result = (exit_code, stdout)
 
-    def terminate(self):
+    def terminate(self) -> None:
         self.container = self.client.containers.get(self.container.id)
         if self.container.status == 'running':
             self.container.kill()
 
 
-def run_test(client, container, test: list, io_path: str, test_timeout: float) -> TestResult:
+def run_test(
+        client: DockerClient,
+        container: Container,
+        test: list[str],
+        io_path: str,
+        test_timeout: float
+) -> TestResult:
     input_file_path = io_path + '/input.txt'
     output_file_path = io_path + '/output.txt'
 
@@ -103,7 +110,12 @@ def run_test(client, container, test: list, io_path: str, test_timeout: float) -
     )
 
 
-def test_solution(client, container, tests: list, test_timeout: float) -> TestsResult:
+def test_solution(
+        client: DockerClient,
+        container: Container,
+        tests: list[list[str]],
+        test_timeout: float
+) -> TestsResult:
     io_directory_path = '/root/io'
     container.exec_run('mkdir -p {}'.format(io_directory_path))
 

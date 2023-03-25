@@ -1,4 +1,12 @@
-def lint_dict(source_code: dict, extensions: list):
+from typing import Any, TypedDict
+
+
+class LintError(TypedDict):
+    line: int
+    message: str
+
+
+def lint_dict(source_code: dict[str, str], extensions: list[str]) -> dict[str, Any]:
     lint_errors = {}
     for name, content in source_code.items():
         need_lint = False
@@ -11,13 +19,13 @@ def lint_dict(source_code: dict, extensions: list):
                 lint_result = lint_code(content)
             except Exception as e:
                 print(e)
-                lint_result = {}
+                lint_result = []
             if len(lint_result) > 0:
                 lint_errors[name] = lint_result
     return lint_errors
 
 
-def lint_errors_to_str(lint_errors: dict):
+def lint_errors_to_str(lint_errors: dict[str, list[dict[str, str]]]) -> str:
     str_lint = ''
     for file, errors in lint_errors.items():
         str_lint += '--- ' + file + ':\n'
@@ -25,11 +33,11 @@ def lint_errors_to_str(lint_errors: dict):
             str_lint += '* Line {}: {}\n'.format(error['line'], error['error'])
         str_lint += '\n'
     # removing the last \n that is not needed
-    return str_lint[0:-1]
+    return str_lint[:-1]
 
 
-def lint_code(code: str):
-    errors = []
+def lint_code(code: str) -> list[LintError]:
+    errors: list[LintError] = []
 
     indent_level = 0
     space_length = None
@@ -49,15 +57,17 @@ def lint_code(code: str):
         need_indentation_check = True
         checking_indentation = True
 
-        prev_c = None
-        c = None
-        next_c = line[0]
+        prev_c: str | None = None
+        c: str | None = None
+        next_c: str | None = line[0]
 
         indent_level_diff_pos = 0
         indent_level_diff_neg = 0
         len_line = len(line)
         for i in range(0, len_line):
-            prev_c, c, next_c = None if c is None else c, next_c, None if i == len_line - 1 else line[i + 1]
+            prev_c = None if c is None else c
+            c = next_c
+            next_c = None if i == len_line - 1 else line[i + 1]
 
             if not is_comment and c == '"' and prev_c != '\\':
                 is_string = False if is_string else True
@@ -74,14 +84,14 @@ def lint_code(code: str):
             if checking_indentation:
                 if c != '\t' and c != ' ':
                     if space_length is None and indent_symbol == ' ' and indent_level > 0:
-                        space_length = current_indent / indent_level
+                        space_length = int(current_indent / indent_level)
                     checking_indentation = False
                     continue
                 if indent_symbol is not None and c != indent_symbol:
                     need_indentation_check = False
                     errors.append({
                         'line': line_number,
-                        'error': 'indentation/mix'
+                        'message': 'indentation/mix'
                     })
                     checking_indentation = False
                 indent_symbol = c
@@ -90,7 +100,7 @@ def lint_code(code: str):
                 if c != ' ' or next_c == ' ':
                     errors.append({
                         'line': line_number,
-                        'error': 'spaces/punctuation'
+                        'message': 'spaces/punctuation'
                     })
 
         indent_level += indent_level_diff_neg
@@ -102,7 +112,7 @@ def lint_code(code: str):
             if current_indent != expected_indent and need_indentation_check:
                 errors.append({
                     'line': line_number,
-                    'error': 'indentation/bad'
+                    'message': 'indentation/bad'
                 })
 
         indent_level += indent_level_diff_pos
@@ -110,7 +120,7 @@ def lint_code(code: str):
     if len(code) > 0 and code[-1] != '\n':
         errors.append({
             'line': line_number,
-            'error': 'line/noendnewline'
+            'message': 'line/noendnewline'
         })
 
     return errors
