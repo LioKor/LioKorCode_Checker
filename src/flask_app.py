@@ -70,14 +70,18 @@ def check_solution_view() -> Response:
         )
         return ResponseJSON(response, status=401)
 
-    try:
-        check_result = SolutionChecker(
-            check_request["sourceCode"],
-            check_request["tests"],
-            build_timeout,
-            test_timeout,
-        ).check_solution()
-        return ResponseJSON(check_result.json())
-    except Exception as e:
-        response = json.dumps({"error": str(e)})
-        return ResponseJSON(response, status=500)
+    # try:
+    check_result = SolutionChecker(
+        check_request["sourceCode"],
+        check_request["tests"],
+        build_timeout,
+        test_timeout,
+    ).check_solution()
+    return ResponseJSON(check_result.json())
+    # except Exception as e:
+    #     response = json.dumps({"error": str(e)})
+    #     return ResponseJSON(response, status=500)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

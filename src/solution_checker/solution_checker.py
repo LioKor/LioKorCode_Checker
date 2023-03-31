@@ -55,10 +55,10 @@ class SolutionChecker:
             if build_result.status != CheckStatus.OK:
                 remove_container(client, container.id)
                 return CheckResult(
-                    check_time=0.0,
+                    tests_time=0.0,
                     build_time=build_result.time,
-                    check_result=build_result.status,
-                    check_message=build_result.message,
+                    status=build_result.status,
+                    message=build_result.message,
                     tests_passed=0,
                     tests_total=len(self.tests),
                     lint_success=False,
@@ -73,10 +73,10 @@ class SolutionChecker:
         remove_container(client, container.id)
 
         return CheckResult(
-            check_time=round(tests_result.time, 4),
+            tests_time=round(tests_result.time, 4),
             build_time=round(build_result.time, 4) if build_result else 0.0,
-            check_result=tests_result.status,
-            check_message=check_message,
+            status=tests_result.status,
+            message=check_message,
             tests_passed=tests_result.tests_passed,
             tests_total=tests_result.tests_total,
             lint_success=lint_result.success,
