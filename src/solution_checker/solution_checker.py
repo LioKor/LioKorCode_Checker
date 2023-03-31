@@ -1,65 +1,89 @@
 from src.solution_checker.check_steps.build import build_solution
 from src.solution_checker.check_steps.test import test_solution
 from src.solution_checker.check_steps.lint import lint_solution
-from src.solution_checker.models import CheckResult, BuildResult, TestsResult, LintResult
+from src.solution_checker.models import CheckResult, BuildResult
 from src.solution_checker.utils import files_to_tar
 from src.solution_checker.docker_utils import create_container, remove_container
-import src.solution_checker.constants as c
+from src.solution_checker.models import CheckStatus
 
 
-def check_solution(
+class MakefileValidationError(Exception):
+    ...
+
+
+class SolutionChecker:
+    def __init__(
+        self,
         source_code: dict[str, str],
         tests: list[list[str]],
         build_timeout: float,
-        test_timeout: float
-) -> CheckResult:
-    makefile = source_code.get('Makefile', None)
-    if makefile is None:
-        return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='No Makefile found!')
-    if makefile.find('run:') == -1:
-        return CheckResult(check_result=c.STATUS_BUILD_ERROR, check_message='Makefile must at least contain "run:"')
+        test_timeout: float,
+    ):
+        self.source_code = source_code
+        self.tests = tests
+        self.build_timeout = build_timeout
+        self.test_timeout = test_timeout
 
-    need_to_build = makefile.find('build:') != -1
+        self.makefile = source_code.get("Makefile")
+        self.need_to_build = (
+            self.makefile.find("build:") != -1 if self.makefile else False
+        )
 
-    try:
-        tar_source = files_to_tar(source_code, 'source/')
-    except Exception:
-        raise Exception('Unable to parse source code!')
+    def check_solution(self) -> CheckResult:
+        self._validate_makefile()
 
-    client, container = create_container()
+        try:
+            tar_source = files_to_tar(self.source_code, "source/")
+        except Exception:
+            raise Exception("Unable to parse source code!")
 
-    try:
-        container.put_archive('/root', tar_source.read())
-    except Exception:
+        client, container = create_container()
+
+        try:
+            container.put_archive("/root", tar_source.read())
+        except Exception:
+            remove_container(client, container.id)
+            raise Exception("Unable to create requested filesystem!")
+
+        check_message = ""
+
+        build_result: BuildResult | None = None
+        if self.need_to_build:
+            build_result = build_solution(client, container, self.build_timeout)
+            check_message += f"{build_result.message}\n" if build_result.message else ""
+
+            if build_result.status != CheckStatus.STATUS_OK:
+                remove_container(client, container.id)
+                return CheckResult(
+                    check_time=0.0,
+                    build_time=build_result.time,
+                    check_result=build_result.status,
+                    check_message=build_result.message,
+                    tests_passed=0,
+                    tests_total=len(self.tests),
+                    lint_success=False,
+                )
+
+        tests_result = test_solution(client, container, self.tests, self.test_timeout)
+        check_message += f"{tests_result.message}\n" if tests_result.message else ""
+
+        lint_result = lint_solution(self.source_code)
+        check_message += f"{lint_result.message}\n" if lint_result.message else ""
+
         remove_container(client, container.id)
-        raise Exception('Unable to create requested filesystem!')
 
-    message = ''
+        return CheckResult(
+            check_time=round(tests_result.time, 4),
+            build_time=round(build_result.time, 4) if build_result else 0.0,
+            check_result=tests_result.status,
+            check_message=check_message,
+            tests_passed=tests_result.tests_passed,
+            tests_total=tests_result.tests_total,
+            lint_success=lint_result.status == CheckStatus.STATUS_OK,
+        )
 
-    build_result = BuildResult(status=c.STATUS_OK)
-    if need_to_build:
-        build_result = build_solution(client, container, build_timeout)
-        message += build_result.message + '\n' if len(build_result.message) > 0 else ''
-
-    tests_result = TestsResult()
-    if build_result.status == c.STATUS_OK:
-        tests_result = test_solution(client, container, tests, test_timeout)
-        message += tests_result.message + '\n' if len(tests_result.message) > 0 else ''
-
-    lint_result = LintResult(status=c.STATUS_LINT_ERROR)
-    if build_result.status == c.STATUS_OK and tests_result.status == c.STATUS_OK:
-        lint_result = lint_solution(source_code)
-        message += lint_result.message if len(lint_result.message) > 0 else ''
-
-    remove_container(client, container.id)
-
-    check_result = build_result.status if build_result.status != c.STATUS_OK else tests_result.status
-    return CheckResult(
-        check_time=round(tests_result.time, 4),  # todo: rename to test_time
-        build_time=round(build_result.time, 4),
-        check_result=check_result,  # todo: rename to status
-        check_message=message,
-        tests_passed=tests_result.tests_passed,
-        tests_total=tests_result.tests_total,
-        lint_success=lint_result.status == c.STATUS_OK
-    )
+    def _validate_makefile(self) -> None:
+        if self.makefile is None:
+            raise MakefileValidationError("Makefile was not found in source code")
+        if self.makefile.find("run:") == -1:
+            raise MakefileValidationError("Makefile must at least contain 'run:'")

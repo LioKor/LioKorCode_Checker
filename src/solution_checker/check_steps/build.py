@@ -5,7 +5,7 @@ from docker.client import DockerClient
 from docker.models.containers import Container
 
 from src.solution_checker.models import BuildResult
-import src.solution_checker.constants as c
+from src.solution_checker.models import CheckStatus
 
 
 class DockerBuildThread(Thread):
@@ -20,8 +20,10 @@ class DockerBuildThread(Thread):
     def run(self) -> None:
         # when timeout is too short exec_run could raise error
         try:
-            build_command = 'make build'
-            build_result = self.container.exec_run(build_command, workdir=self.source_path)
+            build_command = "make build"
+            build_result = self.container.exec_run(
+                build_command, workdir=self.source_path
+            )
             self.result = build_result
         except Exception:
             pass
@@ -30,8 +32,10 @@ class DockerBuildThread(Thread):
         self.container.kill()
 
 
-def build_solution(client: DockerClient, container: Container, build_timeout: float) -> BuildResult:
-    build_thread = DockerBuildThread(client, container, '/root/source')
+def build_solution(
+    client: DockerClient, container: Container, build_timeout: float
+) -> BuildResult:
+    build_thread = DockerBuildThread(client, container, "/root/source")
     start_time = time.time()
     build_thread.start()
     build_thread.join(build_timeout)
@@ -43,21 +47,13 @@ def build_solution(client: DockerClient, container: Container, build_timeout: fl
         # waiting for container to stop and then thread will exit
         build_thread.join()
         return BuildResult(
-            status=c.STATUS_BUILD_TIMEOUT,
-            time=build_time,
-            message=''
+            status=CheckStatus.STATUS_BUILD_TIMEOUT, time=build_time, message=""
         )
 
     if result.exit_code != 0:
         msg = result.output.decode()
         return BuildResult(
-            status=c.STATUS_BUILD_ERROR,
-            time=build_time,
-            message=msg
+            status=CheckStatus.STATUS_BUILD_ERROR, time=build_time, message=msg
         )
 
-    return BuildResult(
-        status=c.STATUS_OK,
-        time=build_time,
-        message=''
-    )
+    return BuildResult(status=CheckStatus.STATUS_OK, time=build_time, message="")
