@@ -1,15 +1,15 @@
 import unittest
 
-import src.solution_checker.constants as c
 from src.solution_checker.models import CheckResult
-from src.solution_checker import solution_checker as sc
+from src.solution_checker.solution_checker import SolutionChecker
+from src.solution_checker.models import CheckStatus
 
 source_code_py_file = {
-    'Makefile': '''
+    "Makefile": """
 run:
 	python3 main.py $(ARGS)
-''',
-    'main.py': '''
+""",
+    "main.py": """
 import sys
 
 fin_path = sys.argv[1]
@@ -24,20 +24,19 @@ print(fout_path)
 fout = open(fout_path, 'w')
 fout.write(str(a + b))
 fout.close()
-'''
+""",
 }
 
 source_code_c_multiple_files = {
-    'Makefile': '''
+    "Makefile": """
 build: main.c sum.o
 	gcc main.c sum.o -o solution
 run:
 	./solution
 sum.o: lib/sum.h lib/sum.c
 	gcc -c lib/sum.c
-''',
-
-    'main.c': '''
+""",
+    "main.c": """
 #include "stdio.h"
 
 #include "lib/sum.h"
@@ -45,32 +44,31 @@ sum.o: lib/sum.h lib/sum.c
 int main() {
     int a, b;
     scanf("%d %d", &a, &b);
-    
+
     printf("%d", sum(a, b));
-    
+
     return 0;
 }
-''',
-    'lib/sum.c': '''
+""",
+    "lib/sum.c": """
 #include "sum.h"
 int sum(int a, int b) {
     return a + b;
 }
-''',
-    'lib/sum.h': '''
+""",
+    "lib/sum.h": """
 int sum(int, int);
-'''
+""",
 }
 
 source_code_bad_build = {
-    'Makefile': '''
+    "Makefile": """
 build:
 	gcc main.c
 run:
 	./a.out
-''',
-
-    'main.c': '''
+""",
+    "main.c": """
 #include "stdio.h"
 
 int main() {
@@ -79,18 +77,17 @@ int main() {
     printf("%d", a + b)
     return 0;
 }
-''',
+""",
 }
 
 source_code_bad_runtime = {
-    'Makefile': '''
+    "Makefile": """
 build:
 	gcc main.c
 run:
 	./a.out
-''',
-
-    'main.c': '''
+""",
+    "main.c": """
 #include "stdio.h"
 
 int main() {
@@ -99,18 +96,18 @@ int main() {
     printf("%d", 1 / 0);
     return 0;
 }
-''',
+""",
 }
 
 # there was an error when task marked solved with no tests passed
 source_code_internal_error = {
-    'Makefile': '''
+    "Makefile": """
 build:
 	gcc main.c
 run:
 	./a.out
-''',
-    'main.c': '''
+""",
+    "main.c": """
 #include <stdio.h>
 
 int main() {
@@ -118,35 +115,35 @@ int main() {
 
     return 0;
 }
-'''
+""",
 }
 
 source_code_build_timeout = {
-    'Makefile': '''
+    "Makefile": """
 build:
 	sleep 10
 run:
 	echo wolf
-'''
+"""
 }
 
 source_code_runtime_timeout = {
-    'Makefile': '''
+    "Makefile": """
 run:
 	sleep 10
 	echo 3
-'''
+"""
 }
 
 source_code_py_wrong = {
-    'Makefile': '''
+    "Makefile": """
 run:
 	python3 main.py
-''',
-    'main.py': '''
+""",
+    "main.py": """
 # a, b = map(int, input().split())
 print(3)
-'''
+""",
 }
 
 
@@ -155,19 +152,19 @@ class SolutionCheckerTest(unittest.TestCase):
     test_timeout = 1
 
     tests = [
-        ['1 2', '3'],
-        ['4 5', '9'],
-        ['-2 2', '0'],
-        ['1 2', '3'],
-        ['4 5', '9'],
-        ['-2 2', '0'],
-        ['1 2', '3'],
-        ['4 5', '9'],
-        ['-2 2', '0']
+        ["1 2", "3"],
+        ["4 5", "9"],
+        ["-2 2", "0"],
+        ["1 2", "3"],
+        ["4 5", "9"],
+        ["-2 2", "0"],
+        ["1 2", "3"],
+        ["4 5", "9"],
+        ["-2 2", "0"],
     ]
 
     def check_solution_ok(self, result: CheckResult) -> None:
-        self.assertEqual(result.check_result, c.STATUS_OK)
+        self.assertEqual(result.check_result, CheckStatus.STATUS_OK)
         self.assertEqual(result.tests_passed, result.tests_total)
         self.assertEqual(result.tests_passed, len(self.tests))
         self.assertLessEqual(result.build_time, self.build_timeout)
@@ -176,55 +173,80 @@ class SolutionCheckerTest(unittest.TestCase):
         self.assertTrue(result.lint_success)
 
     def test_c_multiple_files(self) -> None:
-        result = sc.check_solution(source_code_c_multiple_files, self.tests, self.build_timeout, self.test_timeout)
+        result = SolutionChecker(
+            source_code_c_multiple_files,
+            self.tests,
+            self.build_timeout,
+            self.test_timeout,
+        ).check_solution()
         self.check_solution_ok(result)
         self.assertGreater(result.build_time, 0.01)
 
     def test_py_file_io(self) -> None:
-        result = sc.check_solution(source_code_py_file, self.tests, self.build_timeout, self.test_timeout)
+        result = SolutionChecker(
+            source_code_py_file, self.tests, self.build_timeout, self.test_timeout
+        ).check_solution()
         self.check_solution_ok(result)
 
     def test_error_build(self) -> None:
-        result = sc.check_solution(source_code_bad_build, self.tests, self.build_timeout, self.test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_BUILD_ERROR)
+        result = SolutionChecker(
+            source_code_bad_build, self.tests, self.build_timeout, self.test_timeout
+        ).check_solution()
+        self.assertEqual(result.check_result, CheckStatus.STATUS_BUILD_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_runtime(self) -> None:
-        result = sc.check_solution(source_code_bad_runtime, self.tests, self.build_timeout, self.test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_RUNTIME_ERROR)
+        result = SolutionChecker(
+            source_code_bad_runtime, self.tests, self.build_timeout, self.test_timeout
+        ).check_solution()
+        self.assertEqual(result.check_result, CheckStatus.STATUS_RUNTIME_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_build_timeout(self) -> None:
         build_timeout = 0.1
-        result = sc.check_solution(source_code_build_timeout, self.tests, build_timeout, self.test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_BUILD_TIMEOUT)
+        result = SolutionChecker(
+            source_code_build_timeout, self.tests, build_timeout, self.test_timeout
+        ).check_solution()
+        self.assertEqual(result.check_result, CheckStatus.STATUS_BUILD_TIMEOUT)
         time_diff = abs(result.build_time - build_timeout)
         self.assertLess(time_diff, build_timeout / 4)
         self.assertEqual(len(result.check_message), 0)
 
     def test_error_runtime_timeout(self) -> None:
         test_timeout = 0.1
-        result = sc.check_solution(source_code_runtime_timeout, [['1 2', '3']], self.build_timeout, test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_RUNTIME_TIMEOUT, msg=result.json())
+        result = SolutionChecker(
+            source_code_runtime_timeout,
+            [["1 2", "3"]],
+            self.build_timeout,
+            test_timeout,
+        ).check_solution()
+        self.assertEqual(
+            result.check_result, CheckStatus.STATUS_RUNTIME_TIMEOUT, msg=result.json()
+        )
         time_diff = abs(result.check_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
 
     def test_error_test_error(self) -> None:
-        result = sc.check_solution(source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
+        result = SolutionChecker(
+            source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout
+        ).check_solution()
+        self.assertEqual(
+            result.check_result, CheckStatus.STATUS_TEST_ERROR, msg=result.json()
+        )
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_solved_but_not(self) -> None:
-        tests = [
-            ['1 2', '3\n-1'],
-            ['0 0', '']
-        ]
-        result = sc.check_solution(source_code_internal_error, tests, self.build_timeout, self.test_timeout)
-        self.assertEqual(result.check_result, c.STATUS_TEST_ERROR, msg=result.json())
+        tests = [["1 2", "3\n-1"], ["0 0", ""]]
+        result = SolutionChecker(
+            source_code_internal_error, tests, self.build_timeout, self.test_timeout
+        ).check_solution()
+        self.assertEqual(
+            result.check_result, CheckStatus.STATUS_TEST_ERROR, msg=result.json()
+        )
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

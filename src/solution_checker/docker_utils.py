@@ -9,29 +9,28 @@ from docker.models.containers import Container
 def create_container() -> tuple[DockerClient, Container]:
     client = docker.from_env()
     container = client.containers.run(
-        'liokorcode_checker',
+        "liokorcode_checker",
         detach=True,
         tty=True,
-
         network_disabled=True,
-        mem_limit='128m',
+        mem_limit="128m",
     )
     return client, container
 
 
 def remove_container(client: DockerClient, container_id: str) -> None:
     container = client.containers.get(container_id)
-    if container.status == 'running':
+    if container.status == "running":
         container.kill()
     container.remove()
 
 
 def put_file_to_container(container: Container, path: str, content: str) -> None:
-    path_parts = path.split('/')
-    name, directory = path_parts[-1], '/'.join(path_parts[0:-1])
+    path_parts = path.split("/")
+    name, directory = path_parts[-1], "/".join(path_parts[0:-1])
 
     bio = BytesIO()
-    tar = tarfile.open(fileobj=bio, mode='w')
+    tar = tarfile.open(fileobj=bio, mode="w")
     encoded = content.encode()
     file = BytesIO(encoded)
     tarinfo = tarfile.TarInfo(name)

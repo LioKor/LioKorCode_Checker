@@ -53,9 +53,8 @@ Written in python3. Uses dockerpy to control Docker containers and Flask to rece
 2. `pip3 install -r requirements/dev.txt`
 3. `docker build -t liokorcode_checker liokorcode_checker_image`
 
-### Lint
-1. `flake8 src tests`
-2. `mypy src tests`
+### Format code, lint and check types
+1. `./format_lint_and_check_types.sh`
 
 ### Test
 1. `python3 -m unittest`
