@@ -16,17 +16,26 @@ class CheckStatus(Enum):
 
 @dataclass
 class CheckResult:
-    check_time: float  # todo: rename to test_time
+    tests_time: float
     build_time: float
-    check_result: CheckStatus  # todo: rename to status
-    check_message: str  # todo: rename to message
+    status: CheckStatus
+    message: str
     tests_passed: int
     tests_total: int
     lint_success: bool
 
     def json(self) -> str:
+        # todo: remove when backend is ready to use new fields
+        datakey_mapper = {
+            "tests_time": "check_time",
+            "status": "check_result",
+            "message": "check_message",
+        }
+
         json_data = {}
         for key, value in self.__dict__.items():
+            datakey = datakey_mapper.get(key)
+            key = datakey if datakey is not None else key
             key_split = key.split("_")
             new_key = key_split[0] + "".join(
                 word.capitalize() for word in key_split[1:]

@@ -25,12 +25,12 @@ def lint_dict(source_code: dict[str, str], extensions: list[str]) -> dict[str, A
     return lint_errors
 
 
-def lint_errors_to_str(lint_errors: dict[str, list[dict[str, str]]]) -> str:
+def lint_errors_to_str(lint_errors: dict[str, list[LintError]]) -> str:
     str_lint = ""
     for file, errors in lint_errors.items():
         str_lint += "--- " + file + ":\n"
         for error in errors:
-            str_lint += "* Line {}: {}\n".format(error["line"], error["error"])
+            str_lint += "* Line {}: {}\n".format(error["line"], error["message"])
         str_lint += "\n"
     # removing the last \n that is not needed
     return str_lint[:-1]

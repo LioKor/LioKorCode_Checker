@@ -164,12 +164,12 @@ class SolutionCheckerTest(unittest.TestCase):
     ]
 
     def check_solution_ok(self, result: CheckResult) -> None:
-        self.assertEqual(result.check_result, CheckStatus.OK)
+        self.assertEqual(result.status, CheckStatus.OK)
         self.assertEqual(result.tests_passed, result.tests_total)
         self.assertEqual(result.tests_passed, len(self.tests))
         self.assertLessEqual(result.build_time, self.build_timeout)
-        self.assertLessEqual(result.check_time, self.test_timeout * len(self.tests))
-        self.assertGreater(result.check_time, 0.01)
+        self.assertLessEqual(result.tests_time, self.test_timeout * len(self.tests))
+        self.assertGreater(result.tests_time, 0.01)
         self.assertTrue(result.lint_success)
 
     def test_c_multiple_files(self) -> None:
@@ -192,25 +192,25 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_bad_build, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.BUILD_ERROR)
-        self.assertNotEqual(len(result.check_message), 0)
+        self.assertEqual(result.status, CheckStatus.BUILD_ERROR)
+        self.assertNotEqual(len(result.message), 0)
 
     def test_error_runtime(self) -> None:
         result = SolutionChecker(
             source_code_bad_runtime, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.RUNTIME_ERROR)
-        self.assertNotEqual(len(result.check_message), 0)
+        self.assertEqual(result.status, CheckStatus.RUNTIME_ERROR)
+        self.assertNotEqual(len(result.message), 0)
 
     def test_error_build_timeout(self) -> None:
         build_timeout = 0.1
         result = SolutionChecker(
             source_code_build_timeout, self.tests, build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.BUILD_TIMEOUT)
+        self.assertEqual(result.status, CheckStatus.BUILD_TIMEOUT)
         time_diff = abs(result.build_time - build_timeout)
         self.assertLess(time_diff, build_timeout / 4)
-        self.assertEqual(len(result.check_message), 0)
+        self.assertEqual(len(result.message), 0)
 
     def test_error_runtime_timeout(self) -> None:
         test_timeout = 0.1
@@ -221,27 +221,27 @@ class SolutionCheckerTest(unittest.TestCase):
             test_timeout,
         ).check_solution()
         self.assertEqual(
-            result.check_result, CheckStatus.EXECUTION_TIMEOUT, msg=result.json()
+            result.status, CheckStatus.EXECUTION_TIMEOUT, msg=result.json()
         )
-        time_diff = abs(result.check_time - test_timeout)
+        time_diff = abs(result.tests_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
 
     def test_error_test_error(self) -> None:
         result = SolutionChecker(
             source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.TEST_ERROR, msg=result.json())
+        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
-        self.assertNotEqual(len(result.check_message), 0)
+        self.assertNotEqual(len(result.message), 0)
 
     def test_error_solved_but_not(self) -> None:
         tests = [["1 2", "3\n-1"], ["0 0", ""]]
         result = SolutionChecker(
             source_code_internal_error, tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.TEST_ERROR, msg=result.json())
+        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
-        self.assertNotEqual(len(result.check_message), 0)
+        self.assertNotEqual(len(result.message), 0)
 
 
 if __name__ == "__main__":
