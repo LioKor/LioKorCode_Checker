@@ -47,13 +47,11 @@ def build_solution(
         # waiting for container to stop and then thread will exit
         build_thread.join()
         return BuildResult(
-            status=CheckStatus.STATUS_BUILD_TIMEOUT, time=build_time, message=""
+            status=CheckStatus.BUILD_TIMEOUT, time=build_time, message=""
         )
 
     if result.exit_code != 0:
         msg = result.output.decode()
-        return BuildResult(
-            status=CheckStatus.STATUS_BUILD_ERROR, time=build_time, message=msg
-        )
+        return BuildResult(status=CheckStatus.BUILD_ERROR, time=build_time, message=msg)
 
-    return BuildResult(status=CheckStatus.STATUS_OK, time=build_time, message="")
+    return BuildResult(status=CheckStatus.OK, time=build_time, message="")

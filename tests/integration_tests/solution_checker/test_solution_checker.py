@@ -164,7 +164,7 @@ class SolutionCheckerTest(unittest.TestCase):
     ]
 
     def check_solution_ok(self, result: CheckResult) -> None:
-        self.assertEqual(result.check_result, CheckStatus.STATUS_OK)
+        self.assertEqual(result.check_result, CheckStatus.OK)
         self.assertEqual(result.tests_passed, result.tests_total)
         self.assertEqual(result.tests_passed, len(self.tests))
         self.assertLessEqual(result.build_time, self.build_timeout)
@@ -192,14 +192,14 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_bad_build, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.STATUS_BUILD_ERROR)
+        self.assertEqual(result.check_result, CheckStatus.BUILD_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_runtime(self) -> None:
         result = SolutionChecker(
             source_code_bad_runtime, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.STATUS_RUNTIME_ERROR)
+        self.assertEqual(result.check_result, CheckStatus.RUNTIME_ERROR)
         self.assertNotEqual(len(result.check_message), 0)
 
     def test_error_build_timeout(self) -> None:
@@ -207,7 +207,7 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_build_timeout, self.tests, build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.check_result, CheckStatus.STATUS_BUILD_TIMEOUT)
+        self.assertEqual(result.check_result, CheckStatus.BUILD_TIMEOUT)
         time_diff = abs(result.build_time - build_timeout)
         self.assertLess(time_diff, build_timeout / 4)
         self.assertEqual(len(result.check_message), 0)
@@ -221,7 +221,7 @@ class SolutionCheckerTest(unittest.TestCase):
             test_timeout,
         ).check_solution()
         self.assertEqual(
-            result.check_result, CheckStatus.STATUS_RUNTIME_TIMEOUT, msg=result.json()
+            result.check_result, CheckStatus.EXECUTION_TIMEOUT, msg=result.json()
         )
         time_diff = abs(result.check_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
@@ -230,9 +230,7 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(
-            result.check_result, CheckStatus.STATUS_TEST_ERROR, msg=result.json()
-        )
+        self.assertEqual(result.check_result, CheckStatus.TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 
@@ -241,9 +239,7 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_internal_error, tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(
-            result.check_result, CheckStatus.STATUS_TEST_ERROR, msg=result.json()
-        )
+        self.assertEqual(result.check_result, CheckStatus.TEST_ERROR, msg=result.json())
         self.assertEqual(result.tests_passed, 1, msg=result.json())
         self.assertNotEqual(len(result.check_message), 0)
 

@@ -4,16 +4,14 @@ import json
 
 
 class CheckStatus(Enum):
-    STATUS_UNKNOWN = -1
-    STATUS_OK = 0
-    STATUS_CHECKING = 1
-    STATUS_BUILD_ERROR = 2
-    STATUS_RUNTIME_ERROR = 3
-    STATUS_TEST_ERROR = 4
-    STATUS_RUNTIME_TIMEOUT = 6
-    STATUS_BUILD_TIMEOUT = 7
-    STATUS_LINT_ERROR = 8
-    STATUS_DRAFT = 9
+    UNKNOWN = -1
+    OK = 0
+    CHECKING = 1
+    BUILD_ERROR = 2
+    RUNTIME_ERROR = 3
+    TEST_ERROR = 4
+    EXECUTION_TIMEOUT = 6
+    BUILD_TIMEOUT = 7
 
 
 @dataclass
@@ -64,5 +62,5 @@ class TestsResult:
 
 @dataclass
 class LintResult:
-    status: CheckStatus
+    success: bool
     message: str
