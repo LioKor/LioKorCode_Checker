@@ -89,13 +89,13 @@ def run_test(
         # waiting for container to stop and then thread will exit
         test_thread.join()
         return TestResult(
-            status=CheckStatus.STATUS_RUNTIME_TIMEOUT, time=test_time, message=""
+            status=CheckStatus.EXECUTION_TIMEOUT, time=test_time, message=""
         )
 
     exit_code, stdout = result
     if exit_code != 0:
         return TestResult(
-            status=CheckStatus.STATUS_RUNTIME_ERROR, time=test_time, message=stdout
+            status=CheckStatus.RUNTIME_ERROR, time=test_time, message=stdout
         )
 
     fout = get_file_from_container(container, output_file_path)
@@ -113,11 +113,9 @@ def run_test(
         msg = 'For "{}" expected "{}", but got "{}"'.format(
             test_input, expected_output, answer
         )
-        return TestResult(
-            status=CheckStatus.STATUS_TEST_ERROR, time=test_time, message=msg
-        )
+        return TestResult(status=CheckStatus.TEST_ERROR, time=test_time, message=msg)
 
-    return TestResult(status=CheckStatus.STATUS_OK, time=test_time, message="")
+    return TestResult(status=CheckStatus.OK, time=test_time, message="")
 
 
 def test_solution(
@@ -132,7 +130,7 @@ def test_solution(
     tests_result = TestsResult(
         tests_total=len(tests),
         tests_passed=0,
-        status=CheckStatus.STATUS_OK,
+        status=CheckStatus.OK,
         time=0.0,
         message="",
     )
@@ -141,7 +139,7 @@ def test_solution(
         test_result = run_test(client, container, test, io_directory_path, test_timeout)
 
         tests_result.time += test_result.time
-        if test_result.status != CheckStatus.STATUS_OK:
+        if test_result.status != CheckStatus.OK:
             tests_result.status = test_result.status
             tests_result.message = test_result.message
             return tests_result

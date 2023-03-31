@@ -52,7 +52,7 @@ class SolutionChecker:
             build_result = build_solution(client, container, self.build_timeout)
             check_message += f"{build_result.message}\n" if build_result.message else ""
 
-            if build_result.status != CheckStatus.STATUS_OK:
+            if build_result.status != CheckStatus.OK:
                 remove_container(client, container.id)
                 return CheckResult(
                     check_time=0.0,
@@ -79,7 +79,7 @@ class SolutionChecker:
             check_message=check_message,
             tests_passed=tests_result.tests_passed,
             tests_total=tests_result.tests_total,
-            lint_success=lint_result.status == CheckStatus.STATUS_OK,
+            lint_success=lint_result.success,
         )
 
     def _validate_makefile(self) -> None:
