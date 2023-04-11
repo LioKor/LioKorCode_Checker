@@ -7,9 +7,9 @@ from src.linter import linter
 class LinterTest(unittest.TestCase):
     def test_lint_files(self) -> None:
         test_cases: list[tuple[str, list[LintError]]] = [
-            ("tests/unit_tests/linter/test_cases/c_good_file.c", []),
+            ("src/linter/tests/unit_tests/test_cases/c_good_file.c", []),
             (
-                "tests/unit_tests/linter/test_cases/c_almost_good_file.c",
+                "src/linter/tests/unit_tests/test_cases/c_almost_good_file.c",
                 [
                     {"line": 4, "message": "spaces/punctuation"},
                     {"line": 6, "message": "indentation/bad"},
@@ -17,7 +17,7 @@ class LinterTest(unittest.TestCase):
                 ],
             ),
             (
-                "tests/unit_tests/linter/test_cases/c_bad_file.c",
+                "src/linter/tests/unit_tests/test_cases/c_bad_file.c",
                 [
                     {"line": 5, "message": "indentation/bad"},
                     {"line": 6, "message": "indentation/bad"},
@@ -27,22 +27,22 @@ class LinterTest(unittest.TestCase):
                 ],
             ),
             (
-                "tests/unit_tests/linter/test_cases/c_strings.c",
+                "src/linter/tests/unit_tests/test_cases/c_strings.c",
                 [
                     {"line": 9, "message": "indentation/bad"},
                 ],
             ),
-            ("tests/unit_tests/linter/test_cases/empty_file.c", []),
-            ("tests/unit_tests/linter/test_cases/c_comments.c", []),
+            ("src/linter/tests/unit_tests/test_cases/empty_file.c", []),
+            ("src/linter/tests/unit_tests/test_cases/c_comments.c", []),
             (
-                "tests/unit_tests/linter/test_cases/c_one_liners.c",
+                "src/linter/tests/unit_tests/test_cases/c_one_liners.c",
                 [
                     {"line": 2, "message": "indentation/bad"},
                     {"line": 2, "message": "line/noendnewline"},
                 ],
             ),
             (
-                "tests/unit_tests/linter/test_cases/c_very_bad_file.c",
+                "src/linter/tests/unit_tests/test_cases/c_very_bad_file.c",
                 [
                     {"line": 4, "message": "spaces/punctuation"},
                     {"line": 4, "message": "indentation/bad"},
@@ -57,6 +57,14 @@ class LinterTest(unittest.TestCase):
                     {"line": 10, "message": "indentation/bad"},
                     {"line": 11, "message": "indentation/bad"},
                     {"line": 12, "message": "line/noendnewline"},
+                ],
+            ),
+            (
+                "src/linter/tests/unit_tests/test_cases/c_very_bad_file.c",
+                [
+                    {"line": 37, "message": "line/extranewline"},
+                    {"line": 38, "message": "line/extranewline"},
+                    {"line": 39, "message": "line/extranewline"},
                 ],
             ),
         ]
