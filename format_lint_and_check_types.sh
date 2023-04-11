@@ -1,1 +1,1 @@
-black src tests && flake8 src tests && mypy src tests
+black src && flake8 src && mypy src
