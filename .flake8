@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 120
+
+application-import-names = src
+import-order-style = pep8
+
+per-file-ignores =
+    src/tests/integration_tests/solution_checker/test_solution_checker.py:E101,W191
