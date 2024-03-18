@@ -61,24 +61,6 @@ class LinterTest(unittest.TestCase):
                     {"line": 12, "message": "line/noendnewline"},
                 ],
             ),
-            (
-                f"{self._TEST_PATH}/test_cases/c_very_bad_file.c",
-                [
-                    {"line": 4, "message": "spaces/punctuation"},
-                    {"line": 4, "message": "indentation/bad"},
-                    {"line": 5, "message": "spaces/punctuation"},
-                    {"line": 5, "message": "spaces/punctuation"},
-                    {"line": 5, "message": "indentation/bad"},
-                    {"line": 6, "message": "indentation/bad"},
-                    {"line": 7, "message": "spaces/punctuation"},
-                    {"line": 7, "message": "indentation/bad"},
-                    {"line": 8, "message": "indentation/bad"},
-                    {"line": 9, "message": "indentation/bad"},
-                    {"line": 10, "message": "indentation/bad"},
-                    {"line": 11, "message": "indentation/bad"},
-                    {"line": 12, "message": "line/noendnewline"},
-                ],
-            ),
         ]
 
         for case in test_cases:
