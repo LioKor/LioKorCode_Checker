@@ -1,6 +1,6 @@
-import json
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class CheckStatus(Enum):
@@ -24,7 +24,7 @@ class CheckResult:
     tests_total: int
     lint_success: bool
 
-    def json(self) -> str:
+    def to_dict(self) -> dict[str, Any]:
         # todo: remove when backend is ready to use new fields
         datakey_mapper = {
             "tests_time": "check_time",
@@ -32,16 +32,16 @@ class CheckResult:
             "message": "check_message",
         }
 
-        json_data = {}
+        response_data = {}
         for key, value in self.__dict__.items():
             datakey = datakey_mapper.get(key)
             key = datakey if datakey is not None else key
             key_split = key.split("_")
             new_key = key_split[0] + "".join(word.capitalize() for word in key_split[1:])
-            if type(value) == CheckStatus:
+            if isinstance(value, CheckStatus):
                 value = value.value
-            json_data[new_key] = value
-        return json.dumps(json_data)
+            response_data[new_key] = value
+        return response_data
 
 
 @dataclass
