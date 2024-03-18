@@ -25,6 +25,8 @@ jobs:
         with:
           path: ./.venv
           key: venv-${{ hashFiles('poetry.lock') }}
+      - name: Install Docker
+        uses: docker-practice/actions-setup-docker@master
       - name: Check and test project source
         run: |
           cd ${{ github.workspace }}
