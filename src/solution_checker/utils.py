@@ -1,5 +1,5 @@
-from io import BytesIO
 import tarfile
+from io import BytesIO
 
 
 def files_to_tar(files: dict[str, str], base_path: str) -> BytesIO:

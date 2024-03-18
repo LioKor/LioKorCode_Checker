@@ -11,14 +11,28 @@ packages = [{include = "src"}]
 python = "^3.12"
 uwsgi = "^2.0.21"
 flask = "^2.2.3"
-docker = "^6.0.1"
+docker = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
-mypy = "^0.991"
-flake8 = "^6.0.0"
-flake8-import-order = "^0.18.2"
+pyright = "^1.1.354"
+ruff = "^0.3.3"
 types-Flask = "^1.1.6"
+
+[tool.poetry.scripts]
+check = "scripts.check:check_and_fix"
+check-no-fix = "scripts.check:check_no_fix"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# https://github.com/docker/docker-py/issues/2796
+# [tool.pyright]
+# strict = ["**"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F", "E", "I", "C4", "ANN"]
+ignore = ["ANN101", "ANN102", "ANN401"]

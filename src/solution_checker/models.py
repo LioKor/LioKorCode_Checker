@@ -1,6 +1,6 @@
-from enum import Enum
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
+from enum import Enum
 
 
 class CheckStatus(Enum):
@@ -37,9 +37,7 @@ class CheckResult:
             datakey = datakey_mapper.get(key)
             key = datakey if datakey is not None else key
             key_split = key.split("_")
-            new_key = key_split[0] + "".join(
-                word.capitalize() for word in key_split[1:]
-            )
+            new_key = key_split[0] + "".join(word.capitalize() for word in key_split[1:])
             if type(value) == CheckStatus:
                 value = value.value
             json_data[new_key] = value

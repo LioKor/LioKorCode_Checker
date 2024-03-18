@@ -12,7 +12,7 @@ class DockerTestThread(DockerBaseThread):
         source_path: str,
         input_path: str,
         output_path: str,
-    ):
+    ) -> None:
         super().__init__(client, container)
         self.source_path = source_path
         self.input_path = input_path
@@ -25,7 +25,7 @@ class DockerTestThread(DockerBaseThread):
                 f'/bin/bash -c "rm -f {self.output_path} && cat {self.input_path} | '
                 f"make -s ARGS='{self.input_path} {self.output_path}' run\""
             )
-            execute_result = self.container.exec_run(
+            execute_result = self.container.exec_run(  # type: ignore
                 run_command,
                 workdir=self.source_path,
                 environment={
@@ -36,7 +36,7 @@ class DockerTestThread(DockerBaseThread):
             )
 
             self.container = self.client.containers.get(self.container.id)
-            if self.container.status == "exited":
+            if self.container.status == "exited":  # type: ignore
                 return
         except Exception:
             return

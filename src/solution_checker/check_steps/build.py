@@ -3,14 +3,11 @@ import time
 from docker.client import DockerClient
 from docker.models.containers import Container
 
-from src.solution_checker.models import BuildResult
-from src.solution_checker.models import CheckStatus
+from src.solution_checker.models import BuildResult, CheckStatus
 from src.solution_checker.threads.docker_build_thread import DockerBuildThread
 
 
-def build_solution(
-    client: DockerClient, container: Container, build_timeout: float
-) -> BuildResult:
+def build_solution(client: DockerClient, container: Container, build_timeout: float) -> BuildResult:
     build_thread = DockerBuildThread(client, container, "/root/source")
     start_time = time.time()
     build_thread.start()
@@ -22,9 +19,7 @@ def build_solution(
         build_thread.terminate()
         # waiting for container to stop and then thread will exit
         build_thread.join()
-        return BuildResult(
-            status=CheckStatus.BUILD_TIMEOUT, time=build_time, message=""
-        )
+        return BuildResult(status=CheckStatus.BUILD_TIMEOUT, time=build_time, message="")
 
     exit_code, msg = result
 

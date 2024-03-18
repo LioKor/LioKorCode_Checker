@@ -1,8 +1,8 @@
 import json
 
-from flask import Flask, request, Response
-import config
+from flask import Flask, Response, request
 
+import config
 from src.solution_checker.solution_checker import SolutionChecker
 
 app = Flask(__name__)
@@ -21,42 +21,28 @@ def handle_bad_request() -> tuple[str, int]:
 def check_solution_view() -> Response:
     api_key = request.args.get("api_key")
     if api_key != config.API_KEY:
-        response = json.dumps(
-            {
-                "error": "You need to provide correct api_key as GET param to access this API"
-            }
-        )
+        response = json.dumps({"error": "You need to provide correct api_key as GET param to access this API"})
         return ResponseJSON(response, status=401)
 
     check_request = request.json
 
-    if type(check_request) != dict:
+    if not isinstance(check_request, dict):
         response = json.dumps({"error": "We accept only dict as a root element."})
         return ResponseJSON(response, status=400)
 
-    source_code, tests = check_request.get("sourceCode", None), check_request.get(
-        "tests", None
-    )
+    source_code, tests = check_request.get("sourceCode", None), check_request.get("tests", None)
     if source_code is None or tests is None:
-        response = json.dumps(
-            {"error": 'Required "sourceCode" or "tests" fields are missing!'}
-        )
+        response = json.dumps({"error": 'Required "sourceCode" or "tests" fields are missing!'})
         return ResponseJSON(response, status=400)
 
-    if type(source_code) != dict or type(tests) != list:
-        response = json.dumps(
-            {"error": '"sourceCode" must be dict and "tests" must be list'}
-        )
+    if not isinstance(source_code, dict) or not isinstance(tests, list):
+        response = json.dumps({"error": '"sourceCode" must be dict and "tests" must be list'})
         return ResponseJSON(response, status=400)
 
     build_timeout = check_request.get("buildTimeout", config.DEFAULT_BUILD_TIMEOUT)
     if build_timeout > config.MAX_BUILD_TIMEOUT:
         response = json.dumps(
-            {
-                "error": "buildTimeout is too big, maximum allowed is {}".format(
-                    config.MAX_BUILD_TIMEOUT
-                )
-            }
+            {"error": "buildTimeout is too big, maximum allowed is {}".format(config.MAX_BUILD_TIMEOUT)}
         )
         return ResponseJSON(response, status=401)
 

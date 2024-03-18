@@ -83,11 +83,7 @@ def lint_code(code: str) -> list[LintError]:
 
             if checking_indentation:
                 if c != "\t" and c != " ":
-                    if (
-                        space_length is None
-                        and indent_symbol == " "
-                        and indent_level > 0
-                    ):
+                    if space_length is None and indent_symbol == " " and indent_level > 0:
                         space_length = int(current_indent / indent_level)
                     checking_indentation = False
                     continue
@@ -99,9 +95,7 @@ def lint_code(code: str) -> list[LintError]:
                 current_indent += 1
             elif not is_string and not is_comment and prev_c == ",":
                 if c != " " or next_c == " ":
-                    errors.append(
-                        {"line": line_number, "message": "spaces/punctuation"}
-                    )
+                    errors.append({"line": line_number, "message": "spaces/punctuation"})
 
         indent_level += indent_level_diff_neg
 

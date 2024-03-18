@@ -1,8 +1,7 @@
 import unittest
 
-from src.solution_checker.models import CheckResult
+from src.solution_checker.models import CheckResult, CheckStatus
 from src.solution_checker.solution_checker import SolutionChecker
-from src.solution_checker.models import CheckStatus
 
 source_code_py_file = {
     "Makefile": """
@@ -220,9 +219,7 @@ class SolutionCheckerTest(unittest.TestCase):
             self.build_timeout,
             test_timeout,
         ).check_solution()
-        self.assertEqual(
-            result.status, CheckStatus.EXECUTION_TIMEOUT, msg=result.json()
-        )
+        self.assertEqual(result.status, CheckStatus.EXECUTION_TIMEOUT, msg=result.json())
         time_diff = abs(result.tests_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
 
