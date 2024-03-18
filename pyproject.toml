@@ -9,6 +9,8 @@ packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
+pydantic = "^2.6.4"
+pydantic-settings = "^2.2.1"
 uwsgi = "^2.0.21"
 flask = "^2.2.3"
 docker = "^7.0.0"

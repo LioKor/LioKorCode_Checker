@@ -9,6 +9,8 @@ on:
 jobs:
   check_and_test_project_source:
     runs-on: ubuntu-latest
+    env:
+      API_KEY: SUPER_SECRET_TOKEN_123
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4

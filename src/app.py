@@ -2,7 +2,7 @@ import json
 
 from flask import Flask, Response, request
 
-import config
+from src.config import Config
 from src.solution_checker.solution_checker import SolutionChecker
 
 app = Flask(__name__)
@@ -19,6 +19,8 @@ def handle_bad_request() -> tuple[str, int]:
 
 @app.route("/check_solution", methods=["POST"])
 def check_solution_view() -> Response:
+    config = Config()
+
     api_key = request.args.get("api_key")
     if api_key != config.API_KEY:
         response = json.dumps({"error": "You need to provide correct api_key as GET param to access this API"})
