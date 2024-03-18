@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+      - name: Install Docker
+        uses: docker-practice/actions-setup-docker@master
       - name: Install Python
         uses: actions/setup-python@v5
         with:
@@ -25,11 +27,11 @@ jobs:
         with:
           path: ./.venv
           key: venv-${{ hashFiles('poetry.lock') }}
-      - name: Install Docker
-        uses: docker-practice/actions-setup-docker@master
       - name: Check and test project source
         run: |
           cd ${{ github.workspace }}
+          
+          docker build -t liokorcode_checker liokorcode_checker_image
           
           poetry env use 3.12
           poetry install
