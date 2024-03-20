@@ -15,7 +15,6 @@ COPY uwsgi.ini ./
 COPY pyproject.toml ./
 COPY poetry.toml ./
 COPY poetry.lock ./
-COPY config.template.py ./config.py
 
 RUN /root/.local/share/pypoetry/venv/bin/poetry env use 3.12 && /root/.local/share/pypoetry/venv/bin/poetry install
 RUN . ./.venv/bin/activate

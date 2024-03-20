@@ -6,7 +6,7 @@ Written in python3. Uses dockerpy to control Docker containers and Flask to rece
 ## Quick start
 1. Build image for running user code: `docker build -t liokorcode_checker liokorcode_checker_image`
 2. Build image with checker service: `docker build -t liokorcode_checker_service .`
-3. Start checker service: `docker run -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock -ti liokorcode_checker_service`
+3. Start checker service: `docker run -e API_KEY=change_to_your_api_key -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock -ti liokorcode_checker_service`
 
 ## Development
 
