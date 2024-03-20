@@ -1,8 +1,7 @@
 import unittest
 
-from src.solution_checker.models import CheckResult
+from src.solution_checker.models import CheckResult, CheckStatus
 from src.solution_checker.solution_checker import SolutionChecker
-from src.solution_checker.models import CheckStatus
 
 source_code_py_file = {
     "Makefile": """
@@ -220,9 +219,7 @@ class SolutionCheckerTest(unittest.TestCase):
             self.build_timeout,
             test_timeout,
         ).check_solution()
-        self.assertEqual(
-            result.status, CheckStatus.EXECUTION_TIMEOUT, msg=result.json()
-        )
+        self.assertEqual(result.status, CheckStatus.EXECUTION_TIMEOUT, msg=result.to_dict())
         time_diff = abs(result.tests_time - test_timeout)
         self.assertLess(time_diff, test_timeout / 4)
 
@@ -230,8 +227,8 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_py_wrong, self.tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.json())
-        self.assertEqual(result.tests_passed, 1, msg=result.json())
+        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.to_dict())
+        self.assertEqual(result.tests_passed, 1, msg=result.to_dict())
         self.assertNotEqual(len(result.message), 0)
 
     def test_error_solved_but_not(self) -> None:
@@ -239,8 +236,8 @@ class SolutionCheckerTest(unittest.TestCase):
         result = SolutionChecker(
             source_code_internal_error, tests, self.build_timeout, self.test_timeout
         ).check_solution()
-        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.json())
-        self.assertEqual(result.tests_passed, 1, msg=result.json())
+        self.assertEqual(result.status, CheckStatus.TEST_ERROR, msg=result.to_dict())
+        self.assertEqual(result.tests_passed, 1, msg=result.to_dict())
         self.assertNotEqual(len(result.message), 0)
 
 

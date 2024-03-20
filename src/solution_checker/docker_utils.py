@@ -15,14 +15,14 @@ def create_container() -> tuple[DockerClient, Container]:
         network_disabled=True,
         mem_limit="128m",
     )
-    return client, container
+    return client, container  # type: ignore
 
 
 def remove_container(client: DockerClient, container_id: str) -> None:
-    container = client.containers.get(container_id)
-    if container.status == "running":
-        container.kill()
-    container.remove()
+    container = client.containers.get(container_id=container_id)
+    if container.status == "running":  # type: ignore
+        container.kill()  # type: ignore
+    container.remove()  # type: ignore
 
 
 def put_file_to_container(container: Container, path: str, content: str) -> None:

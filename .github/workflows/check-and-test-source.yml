@@ -1,0 +1,39 @@
+name: Check and test project source
+run-name: Checking ${{github.ref}} (triggered by ${{ github.actor }})
+on:
+  pull_request:
+  push:
+    branches:
+      - 'dev'
+      - 'main'
+jobs:
+  check_and_test_project_source:
+    runs-on: ubuntu-latest
+    env:
+      API_KEY: SUPER_SECRET_TOKEN_123
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install Docker
+        uses: docker-practice/actions-setup-docker@master
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3
+      - name: Define a cache for the virtual environment based on the dependencies lock file
+        uses: actions/cache@v3
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+      - name: Check and test project source
+        run: |
+          cd ${{ github.workspace }}
+          
+          docker build -t liokorcode_checker liokorcode_checker_image
+          
+          poetry env use 3.12
+          poetry install
+          
+          poetry run check-no-fix

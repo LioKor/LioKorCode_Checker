@@ -1,14 +1,12 @@
 from src.solution_checker.check_steps.build import build_solution
-from src.solution_checker.check_steps.test import test_solution
 from src.solution_checker.check_steps.lint import lint_solution
-from src.solution_checker.models import CheckResult, BuildResult
-from src.solution_checker.utils import files_to_tar
+from src.solution_checker.check_steps.test import test_solution
 from src.solution_checker.docker_utils import create_container, remove_container
-from src.solution_checker.models import CheckStatus
+from src.solution_checker.models import BuildResult, CheckResult, CheckStatus
+from src.solution_checker.utils import files_to_tar
 
 
-class MakefileValidationError(Exception):
-    ...
+class MakefileValidationError(Exception): ...
 
 
 class SolutionChecker:
@@ -18,16 +16,14 @@ class SolutionChecker:
         tests: list[list[str]],
         build_timeout: float,
         test_timeout: float,
-    ):
+    ) -> None:
         self.source_code = source_code
         self.tests = tests
         self.build_timeout = build_timeout
         self.test_timeout = test_timeout
 
         self.makefile = source_code.get("Makefile")
-        self.need_to_build = (
-            self.makefile.find("build:") != -1 if self.makefile else False
-        )
+        self.need_to_build = self.makefile.find("build:") != -1 if self.makefile else False
 
     def check_solution(self) -> CheckResult:
         self._validate_makefile()
@@ -40,9 +36,9 @@ class SolutionChecker:
         client, container = create_container()
 
         try:
-            container.put_archive("/root", tar_source.read())
+            container.put_archive(path="/root", data=tar_source.read())
         except Exception:
-            remove_container(client, container.id)
+            remove_container(client=client, container_id=container.id)  # type: ignore
             raise Exception("Unable to create requested filesystem!")
 
         check_message = ""
@@ -53,7 +49,7 @@ class SolutionChecker:
             check_message += f"{build_result.message}\n" if build_result.message else ""
 
             if build_result.status != CheckStatus.OK:
-                remove_container(client, container.id)
+                remove_container(client=client, container_id=container.id)  # type: ignore
                 return CheckResult(
                     tests_time=0.0,
                     build_time=build_result.time,
@@ -70,7 +66,7 @@ class SolutionChecker:
         lint_result = lint_solution(self.source_code)
         check_message += f"{lint_result.message}\n" if lint_result.message else ""
 
-        remove_container(client, container.id)
+        remove_container(client=client, container_id=container.id)  # type: ignore
 
         return CheckResult(
             tests_time=round(tests_result.time, 4),

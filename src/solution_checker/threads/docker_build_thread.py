@@ -5,7 +5,7 @@ from src.solution_checker.threads.docker_base_thread import DockerBaseThread
 
 
 class DockerBuildThread(DockerBaseThread):
-    def __init__(self, client: DockerClient, container: Container, source_path: str):
+    def __init__(self, client: DockerClient, container: Container, source_path: str) -> None:
         super().__init__(client, container)
         self.source_path = source_path
 
@@ -13,9 +13,7 @@ class DockerBuildThread(DockerBaseThread):
         # when timeout is too short exec_run could raise error
         try:
             build_command = "make build"
-            execute_result = self.container.exec_run(
-                build_command, workdir=self.source_path
-            )
+            execute_result = self.container.exec_run(build_command, workdir=self.source_path)  # type: ignore
         except Exception:
             return
 
